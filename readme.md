@@ -1,74 +1,84 @@
-# Subspace Module Boilerplate
+# Subspace Database Module
 
-A boilerplate repo for new subspace modules that includes
+Connects network with local storage of mutable and immutable records for subspace DB.
 
-* [Typescript](https://www.typescriptlang.org/index.html)
-* Supports testing with [Jest](https://jestjs.io/)
-* [Yarn](https://yarnpkg.com/en/) for managing dependencies
-* Node JS .gitignore
+## Usage as a module
 
-## Setup
-
-Clone a bare copy of this repo locally
+Install this module as a dependency into another project
 
 ```
-git clone --bare https://github.com/subspace/boilerplate.git
+$ yarn add 'github:subspace/database'
 ```
 
-Create a new empty repo in the subspace org with name: module_name  
-Mirror push to the new repo
+Require this module inside a script
+
+```typescript
+import Database from '@subspace/database'
+const db = new Database(profile, storage)
 
 ```
-$ cd boilerplate.git
-$ git push --mirror https://www.github.com/subspace/module_name.git
-```
 
-Remove the temporary repo 
-```
-$ cd ../
-$ rm -rf boilerplate.git
-```
+## API
+### database.createImmutableRecord(value: any, contract: string) :  record: object
+Stores a value as an immutable record under a given data contract.
 
-Clone and install the new repo locally   
-Make sure you edit package.json with new module_name
+* `value` - any value type, database will encode properly
+* `contract` - contract id data will be stored under
+
+Returns the encoded & encrypted object as it will be stored on subspace.
+
+### database.readImmutableRecord(record: object) :  record: object
+Takes an encoded & encrypted reocrd object and converts to a plain text object. Assuming the node has appropriate permissions.
+
+* `record` - an encoded & encrypted immutable record
+
+Returns the decoded & decrypted object.
+
+### database.createMutableRecord(value: any, contract: string) :  record: object
+Stores a value as an mutable record under a given data contract.
+
+* `value` - any value type, database will encode properly
+* `contract` - contract id data will be stored under
+
+Returns the encoded & encrypted object as it will be stored on subspace.
+
+### database.readMutableRecord(record: object) :  record: object
+Takes an encoded & encrypted reocrd object and converts to a plain text object. Assuming the node has appropriate permissions.
+
+* `record` - an encoded & encrypted mutable record
+
+Returns the decoded & decrypted object.
+
+### database.updateMutableRecord(update: any, record: object) :  record: object
+Updates an exisiting mutable record to a new value.
+
+* `update` - any value type, database will encode properly
+* `record` - decoded and decrypted mutable record that update will be applied to.
+
+Returns the encoded & encrypted update mutable object as it will be stored on subspace.
+
+## Development usage
+
+Clone and install the repo locally   
 
 ```
-$ git clone https://www.github.com/subspace/module_name
-$ cd module_name
+$ git clone https://www.github.com/subspace/database.git
+$ cd crypto
 $ yarn
 ```
 
-## Development
-
-Start writing code in src/main.ts
+Edit code in src/main.ts
 
 Build manually.  
-This will create an entry point at dist/main.js
- 
+
 ```
 $ tsc -w
 ```
 
 [Instructions](https://code.visualstudio.com/docs/languages/typescript#_step-2-run-the-typescript-build) to automate with visual studio code.
 
-## Testing
-
-Write tests in src/main.tests.ts (example provided) and run with
+Run tests with
 
 ```
 $ npx jest
-```
-
-## External Usage
-
-Install this module as a dependency into another project
-
-```
-$ yarn add https://www.github.com/subspace/module_name.git
-```
-
-Require this module inside a script
-
-```javascript
-import module_name from '@subspace/module_name'
 ```
