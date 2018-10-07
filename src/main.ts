@@ -26,7 +26,7 @@ export default class Database extends EventEmitter {
     }
   } 
 
-   encodeValue(value: any) {
+   private encodeValue(value: any) {
      // determine type and convert to string
     let encoding = null
     if (value === undefined) {
@@ -43,16 +43,16 @@ export default class Database extends EventEmitter {
     } else if (typeof value === 'boolean') {
       encoding = 'boolean'
       value = value.toString()
-    } else if (typeof value === 'object' && value.isArray()) {
-      encoding = 'array'
+    } else if (Buffer.isBuffer(value)) {
+      encoding = 'buffer'
       value = value.toString()
+    } else if (typeof value === 'object' && Array.isArray(value)) {
+      encoding = 'array'
+      value = JSON.stringify(value)
     } else if (typeof value === 'object') {
       encoding = 'object'
       value = JSON.stringify(value)
-    } else if (value.isBuffer()) {
-      encoding = 'buffer'
-      value = value.toString()
-    }
+    } 
 
     return { 
       encodedValue: value,
@@ -60,7 +60,7 @@ export default class Database extends EventEmitter {
     }
   }
 
-   decodeValue(encodedValue: string, encoding: string) {
+   private decodeValue(encodedValue: string, encoding: string) {
      // convert string encodedValue back to original type  
 
     let value = null
@@ -79,7 +79,7 @@ export default class Database extends EventEmitter {
         else value = false 
         break
       case 'array':
-        value = Array.from(encodedValue)
+        value = JSON.parse(encodedValue)
         break
       case 'object':
         value = JSON.parse(encodedValue)
@@ -103,7 +103,7 @@ export default class Database extends EventEmitter {
       const immutableRecord: interfaces.immutableRecord = {
         key: null,
         value: {
-          version: '0.0.1',
+          version: 0,
           encoding: encoding,
           symkey: encryptedSymkey,
           content: encryptedValue,
@@ -165,7 +165,7 @@ export default class Database extends EventEmitter {
       const mutableRecord: interfaces.mutableRecord = {
         key: null,
         value: {
-          version: '0.0.1',
+          version: 0,
           encoding: encoding,
           symkey: encryptedSymkey,
           pubkey: keys.publicKeyArmored,

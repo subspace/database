@@ -5,7 +5,7 @@ export interface immutableRecord {
 }
 
 export interface immutableValue {
-  version: string   // subspace database encoding version of this record
+  version: number   // subspace database encoding version of this record
   encoding: string  // the value encoding for the content 
   symkey: string    // asym encrypted symmetric key
   content: string   // the data being stored, encrypted by default
