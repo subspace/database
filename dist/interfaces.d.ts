@@ -1,8 +1,4 @@
-export interface ImmutableRecord {
-    key: string;
-    value: ImmutableValue;
-}
-export interface ImmutableValue {
+export interface IValue {
     version: number;
     encoding: string;
     symkey: string;
@@ -12,16 +8,24 @@ export interface ImmutableValue {
     size: number;
     contract: string;
 }
-export interface MutableRecord {
-    key: string;
-    value: MutableValue;
+export interface IImmutableValue extends IValue {
 }
-export interface MutableValue extends ImmutableValue {
+export interface IMutableValue extends IValue {
     pubkey: string;
     privkey: string;
     contentHash: string;
     revision: number;
     signature: string;
+}
+export interface IRecord {
+    key: string;
+    value: IValue;
+}
+export interface IImmutableRecord extends IRecord {
+    value: IImmutableValue;
+}
+export interface IMutableRecord extends IRecord {
+    value: IMutableValue;
 }
 export interface ShardIndex {
     contract: string;
