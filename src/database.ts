@@ -5,9 +5,13 @@ import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
 
 /**
- * Size of one shard in bytes
+ * Size of one shard in bytes (100M)
  */
 export const SHARD_SIZE = 100000000;
+/**
+ * Pledge size in bytes (100 shards or 10G)
+ */
+export const PLEDGE_SIZE = SHARD_SIZE * 100;
 
 // ToDo
   // use sub-level-down to create a namespaced databases
@@ -357,7 +361,8 @@ export default class Database extends EventEmitter {
       .map((entry: any) => {
         return new Destination(
           crypto.getHash64(entry.hash),
-          entry.pledge/10000000000)
+          entry.pledge/PLEDGE_SIZE
+        )
       })
   }
 
