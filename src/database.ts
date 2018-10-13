@@ -1,7 +1,6 @@
 import * as I from './interfaces'
 import * as crypto from '@subspace/crypto'
 import { EventEmitter } from 'events'
-import {randomBytes} from 'crypto';
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
 
@@ -13,7 +12,7 @@ export default class Database extends EventEmitter {
 
 
   constructor(
-    private storage: any, 
+    private storage: any,
     private profile: any,
     private tracker: any,
     public interfaces: any = I
@@ -24,14 +23,14 @@ export default class Database extends EventEmitter {
         this.storage.put('shards', JSON.stringify([]))
       }
     })
-    
+
   }
 
   private encodeValue(value: any) {
      // determine type and convert to string
     let encoding = null
     if (value === undefined) {
-      // need to return an error 
+      // need to return an error
     } else if (value === null) {
       encoding = 'null',
       value = 'null'
@@ -53,16 +52,16 @@ export default class Database extends EventEmitter {
     } else if (typeof value === 'object') {
       encoding = 'object'
       value = JSON.stringify(value)
-    } 
+    }
 
-    return { 
+    return {
       encodedValue: value,
-      encoding 
+      encoding
     }
   }
 
   private decodeValue(encodedValue: string, encoding: string) {
-     // convert string encodedValue back to original type  
+     // convert string encodedValue back to original type
 
     let value = null
     switch (encoding) {
@@ -77,7 +76,7 @@ export default class Database extends EventEmitter {
         break
       case 'boolean':
         if (encodedValue === 'true') value = true
-        else value = false 
+        else value = false
         break
       case 'array':
         value = JSON.parse(encodedValue)
@@ -86,8 +85,8 @@ export default class Database extends EventEmitter {
         value = JSON.parse(encodedValue)
         break
       case 'buffer':
-        value = Buffer.from(encodedValue)   
-        break       
+        value = Buffer.from(encodedValue)
+        break
     }
 
     return value
@@ -109,14 +108,14 @@ export default class Database extends EventEmitter {
             symkey: encryptedSymkey,
             content: encryptedValue,
             owner: this.profile.user.hexId,
-            contract: contract, 
+            contract: contract,
             timestamp: Date.now(),
             size: null
           }
         }
 
         // add the size of partial record, size integer, and detached signature
-        const size = Buffer.byteLength(JSON.stringify(immutableRecord.value)) 
+        const size = Buffer.byteLength(JSON.stringify(immutableRecord.value))
         const sizeOfSize = Buffer.byteLength(size.toString())
         immutableRecord.value.size = size + sizeOfSize + 96
         immutableRecord.key = crypto.getHash(JSON.stringify(immutableRecord.value))
@@ -163,7 +162,7 @@ export default class Database extends EventEmitter {
         const encryptedSymkey = await crypto.encryptAssymetric(symkey, keys.publicKeyArmored)
         const encryptedPrivkey = await crypto.encryptAssymetric(keys.privateKeyArmored, this.profile.activeKeyPair.public_key_armored)
 
-        // init the record object 
+        // init the record object
         const mutableRecord: I.MutableRecord = {
           key: null,
           value: {
@@ -171,10 +170,10 @@ export default class Database extends EventEmitter {
             encoding: encoding,
             symkey: encryptedSymkey,
             pubkey: keys.publicKeyArmored,
-            privkey: encryptedPrivkey, 
+            privkey: encryptedPrivkey,
             content: encryptedValue,
             owner: this.profile.user.hexId,
-            contract: contract, 
+            contract: contract,
             revision: 0,
             timestamp: Date.now(),
             size: null,
@@ -184,12 +183,12 @@ export default class Database extends EventEmitter {
         }
 
         // add the size of partial record, size integer, and detached signature
-        const size = Buffer.byteLength(JSON.stringify(mutableRecord.value)) 
+        const size = Buffer.byteLength(JSON.stringify(mutableRecord.value))
         const sizeOfSize = Buffer.byteLength(size.toString())
         mutableRecord.value.size = size + sizeOfSize + 96
         mutableRecord.value.signature = await crypto.sign(mutableRecord.value, mutableRecord.value.pubkey)
 
-        resolve(mutableRecord) 
+        resolve(mutableRecord)
       }
       catch(error) {
         this.emit('error', error)
@@ -197,7 +196,7 @@ export default class Database extends EventEmitter {
       }
     })
   }
-      
+
   public readMutableRecord(record: I.MutableRecord): Promise<I.MutableRecord> {
     return new Promise<I.MutableRecord> (async (resolve, reject) => {
       try {
@@ -234,14 +233,14 @@ export default class Database extends EventEmitter {
   public updateMutableRecord(update: any, record: I.MutableRecord): Promise<I.MutableRecord> {
     return new Promise<I.MutableRecord> (async (resolve, reject) => {
       try {
-        // assume the record is opened 
+        // assume the record is opened
         const { encodedValue, encoding } = this.encodeValue(update)
         const hash = crypto.getHash(encodedValue)
         const encryptedValue = await crypto.encryptSymmetric(encodedValue, record.value.symkey)
         const encryptedSymkey = await crypto.encryptAssymetric(record.value.symkey, record.value.pubkey)
         const encryptedPrivkey = await crypto.encryptAssymetric(record.value.privkey, this.profile.activeKeyPair.public_key_armored)
 
-        record.value.encoding = encoding 
+        record.value.encoding = encoding
         record.value.content = encryptedValue
         record.value.symkey = encryptedSymkey
         record.value.privkey = encryptedPrivkey
@@ -516,8 +515,8 @@ export default class Database extends EventEmitter {
       .getEntries()
       .map((entry: any) => {
         new Destination(
-          crypto.getHash64(entry.hash), 
-          entry.pledge/10000000000) 
+          crypto.getHash64(entry.hash),
+          entry.pledge/10000000000)
       })
     return destinations
   }
@@ -541,14 +540,14 @@ export default class Database extends EventEmitter {
 
   public computeShardForKey(key: string, contractSize: number) {
     // retuns the correct shard number for a record given a key and a contract size
-    // uses jump consistent hashing 
+    // uses jump consistent hashing
     const hash = crypto.getHash64(key)
     const buckets = contractSize / 100000000
     return jumpConsistentHash(hash, buckets)
   }
 
   public computeHostsForKey(key: string, contractId: string, contractSize: number, replication: number) {
-    // return the correct hosts for a given key 
+    // return the correct hosts for a given key
     const shards = this.computeShards(contractId, contractSize)
     const shardIndex = this.computeShardForKey(key, contractSize)
     const shard = shards[shardIndex]
