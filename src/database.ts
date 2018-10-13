@@ -1,22 +1,24 @@
 import * as I from './interfaces'
 import * as crypto from '@subspace/crypto'
 import { EventEmitter } from 'events'
+import {randomBytes} from 'crypto';
+import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
+import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
+
 
 // ToDo
   // use sub-level-down to create a namespaced databases
 
 export default class Database extends EventEmitter {
 
-  interfaces: any
-  storage: any
-  profile: any
 
-  constructor(storage: any, profile: any) {
+  constructor(
+    private storage: any, 
+    private profile: any,
+    private tracker: any,
+    public interfaces: any = I
+  ) {
     super()
-    this.interfaces = I
-    this.storage = storage
-    this.profile = profile
-
     this.storage.get('shards', (shards: string) => {
       if(!shards) {
         this.storage.put('shards', JSON.stringify([]))
@@ -495,6 +497,64 @@ export default class Database extends EventEmitter {
         reject(error)
       }
     })
+  }
+
+  public computeShards(contractId: string, contractSize: number) {
+    // returns an array of shardIds for a contract
+    let hash = contractId
+    let shards = []
+    const count = contractSize / 100000000
+    for (let i = 0; i < count; i++) {
+      hash = crypto.getHash(hash)
+      shards.push(hash)
+    }
+    return shards
+  }
+
+  public getDestinations() {
+    const destinations: Destination[] = this.tracker
+      .getEntries()
+      .map((entry: any) => {
+        new Destination(
+          crypto.getHash64(entry.hash), 
+          entry.pledge/10000000000) 
+      })
+    return destinations
+  }
+
+  public computeHostsforShards(shardIds: string[], replication: number) {
+    // returns the closest hosts for each shard based on replication factor and host pledge using weighted rendezvous hashing
+    const destinations = this.getDestinations()
+    const shards: I.ShardMap[] = []
+    shardIds.forEach(shardId => {
+      const hash = crypto.getHash64(shardId)
+      const binaryHosts = pickDestinations(hash, destinations, replication)
+      const stringHosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'))
+      const shard: I.ShardMap = {
+        id: shardId,
+        hosts: stringHosts
+      }
+      shards.push(shard)
+    })
+    return shards
+  }
+
+  public computeShardForKey(key: string, contractSize: number) {
+    // retuns the correct shard number for a record given a key and a contract size
+    // uses jump consistent hashing 
+    const hash = crypto.getHash64(key)
+    const buckets = contractSize / 100000000
+    return jumpConsistentHash(hash, buckets)
+  }
+
+  public computeHostsForKey(key: string, contractId: string, contractSize: number, replication: number) {
+    // return the correct hosts for a given key 
+    const shards = this.computeShards(contractId, contractSize)
+    const shardIndex = this.computeShardForKey(key, contractSize)
+    const shard = shards[shardIndex]
+    const shardMaps = this.computeHostsforShards(shards, replication)
+    const shardMapForKey = shardMaps.filter(shardMap => shardMap.id === shard)
+    return shardMapForKey[0].hosts
   }
 }
 

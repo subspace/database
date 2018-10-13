@@ -35,3 +35,7 @@ export interface Shard {
     size: number;
     records: string[];
 }
+export interface ShardMap {
+    id: string;
+    hosts: string[];
+}

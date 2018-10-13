@@ -10,14 +10,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const I = __importStar(require("./interfaces"));
 const crypto = __importStar(require("@subspace/crypto"));
 const events_1 = require("events");
+const jump_consistent_hash_1 = require("@subspace/jump-consistent-hash");
+const rendezvous_hash_1 = require("@subspace/rendezvous-hash");
 // ToDo
 // use sub-level-down to create a namespaced databases
 class Database extends events_1.EventEmitter {
-    constructor(storage, profile) {
+    constructor(storage, profile, tracker, interfaces = I) {
         super();
-        this.interfaces = I;
         this.storage = storage;
         this.profile = profile;
+        this.tracker = tracker;
+        this.interfaces = interfaces;
         this.storage.get('shards', (shards) => {
             if (!shards) {
                 this.storage.put('shards', JSON.stringify([]));
@@ -460,6 +463,57 @@ class Database extends events_1.EventEmitter {
                 reject(error);
             }
         });
+    }
+    computeShards(contractId, contractSize) {
+        // returns an array of shardIds for a contract
+        let hash = contractId;
+        let shards = [];
+        const count = contractSize / 100000000;
+        for (let i = 0; i < count; i++) {
+            hash = crypto.getHash(hash);
+            shards.push(hash);
+        }
+        return shards;
+    }
+    getDestinations() {
+        const destinations = this.tracker
+            .getEntries()
+            .map((entry) => {
+            new rendezvous_hash_1.Destination(crypto.getHash64(entry.hash), entry.pledge / 10000000000);
+        });
+        return destinations;
+    }
+    computeHostsforShards(shardIds, replication) {
+        // returns the closest hosts for each shard based on replication factor and host pledge using weighted rendezvous hashing
+        const destinations = this.getDestinations();
+        const shards = [];
+        shardIds.forEach(shardId => {
+            const hash = crypto.getHash64(shardId);
+            const binaryHosts = rendezvous_hash_1.pickDestinations(hash, destinations, replication);
+            const stringHosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'));
+            const shard = {
+                id: shardId,
+                hosts: stringHosts
+            };
+            shards.push(shard);
+        });
+        return shards;
+    }
+    computeShardForKey(key, contractSize) {
+        // retuns the correct shard number for a record given a key and a contract size
+        // uses jump consistent hashing 
+        const hash = crypto.getHash64(key);
+        const buckets = contractSize / 100000000;
+        return jump_consistent_hash_1.jumpConsistentHash(hash, buckets);
+    }
+    computeHostsForKey(key, contractId, contractSize, replication) {
+        // return the correct hosts for a given key 
+        const shards = this.computeShards(contractId, contractSize);
+        const shardIndex = this.computeShardForKey(key, contractSize);
+        const shard = shards[shardIndex];
+        const shardMaps = this.computeHostsforShards(shards, replication);
+        const shardMapForKey = shardMaps.filter(shardMap => shardMap.id === shard);
+        return shardMapForKey[0].hosts;
     }
 }
 exports.default = Database;

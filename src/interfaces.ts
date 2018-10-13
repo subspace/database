@@ -42,3 +42,8 @@ export interface Shard {
   records: string[]
 }
 
+export interface ShardMap {
+  id: string
+  hosts: string[]
+}
+

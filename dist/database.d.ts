@@ -1,11 +1,13 @@
 /// <reference types="node" />
 import * as I from './interfaces';
 import { EventEmitter } from 'events';
+import { Destination } from '@subspace/rendezvous-hash';
 export default class Database extends EventEmitter {
+    private storage;
+    private profile;
+    private tracker;
     interfaces: any;
-    storage: any;
-    profile: any;
-    constructor(storage: any, profile: any);
+    constructor(storage: any, profile: any, tracker: any, interfaces?: any);
     private encodeValue;
     private decodeValue;
     createImmutableRecord(value: any, contract: string): Promise<I.ImmutableRecord>;
@@ -27,4 +29,9 @@ export default class Database extends EventEmitter {
     getAllRecordKeys(): Promise<string[]>;
     getLengthOfAllRecords(): Promise<number>;
     deleteAllShardsAndRecords(): Promise<void>;
+    computeShards(contractId: string, contractSize: number): string[];
+    getDestinations(): Destination[];
+    computeHostsforShards(shardIds: string[], replication: number): I.ShardMap[];
+    computeShardForKey(key: string, contractSize: number): number;
+    computeHostsForKey(key: string, contractId: string, contractSize: number, replication: number): string[];
 }
