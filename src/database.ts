@@ -358,12 +358,12 @@ export default class Database extends EventEmitter {
       })
   }
 
-  public computeHostsforShards(shardIds: string[], replication: number): ShardMap[] {
+  public computeHostsforShards(shardIds: string[], replicationFactor: number): ShardMap[] {
     // returns the closest hosts for each shard based on replication factor and host pledge using weighted rendezvous hashing
     const destinations = this.getDestinations()
     return shardIds.map(shardId => {
       const hash = crypto.getHash64(shardId)
-      const binaryHosts = pickDestinations(hash, destinations, replication)
+      const binaryHosts = pickDestinations(hash, destinations, replicationFactor)
       const stringHosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'))
       return {
         id: shardId,
@@ -380,12 +380,12 @@ export default class Database extends EventEmitter {
     return jumpConsistentHash(hash, buckets)
   }
 
-  public computeHostsForKey(key: string, contractId: string, contractSize: number, replication: number): string[] {
+  public computeHostsForKey(key: string, contractId: string, contractSize: number, replicationFactor: number): string[] {
     // return the correct hosts for a given key
     const shards = this.computeShards(contractId, contractSize)
     const shardIndex = this.computeShardForKey(key, contractSize)
     const shard = shards[shardIndex]
-    const shardMaps = this.computeHostsforShards(shards, replication)
+    const shardMaps = this.computeHostsforShards(shards, replicationFactor)
     const shardMapForKey = shardMaps.filter(shardMap => shardMap.id === shard)
     return shardMapForKey[0].hosts
   }
