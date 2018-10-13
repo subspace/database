@@ -1,4 +1,4 @@
-import * as I from './interfaces'
+import {ImmutableRecord, ImmutableValue, MutableRecord, MutableValue, Shard, ShardIndex} from './interfaces'
 import * as crypto from '@subspace/crypto'
 import { EventEmitter } from 'events'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
@@ -91,15 +91,15 @@ export default class Database extends EventEmitter {
     return value
   }
 
-  public createImmutableRecord(value: any, contract: string): Promise<I.ImmutableRecord> {
-    return new Promise<I.ImmutableRecord> (async (resolve, reject) => {
+  public createImmutableRecord(value: any, contract: string): Promise<ImmutableRecord> {
+    return new Promise<ImmutableRecord> (async (resolve, reject) => {
       try {
         const { encodedValue, encoding } = this.encodeValue(value)
         const symkey = crypto.getRandom()
         const encryptedValue = await crypto.encryptSymmetric(encodedValue, symkey)
         const encryptedSymkey = await crypto.encryptAssymetric(symkey, this.profile.activeKeyPair.public_key_armored)
 
-        const immutableRecord: I.ImmutableRecord = {
+        const immutableRecord: ImmutableRecord = {
           key: null,
           value: {
             version: 0,
@@ -127,8 +127,8 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public readImmutableRecord(record: I.ImmutableRecord): Promise<I.ImmutableRecord> {
-    return new Promise<I.ImmutableRecord> (async (resolve, reject) => {
+  public readImmutableRecord(record: ImmutableRecord): Promise<ImmutableRecord> {
+    return new Promise<ImmutableRecord> (async (resolve, reject) => {
       try {
 
         const valid = crypto.isValidHash(record.key, JSON.stringify(record.value))
@@ -150,8 +150,8 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public createMutableRecord(value: any, contract: string): Promise<I.MutableRecord> {
-    return new Promise<I.MutableRecord> (async (resolve, reject) => {
+  public createMutableRecord(value: any, contract: string): Promise<MutableRecord> {
+    return new Promise<MutableRecord> (async (resolve, reject) => {
       try {
         const keys: any = await crypto.generateKeys(null)
         const symkey = crypto.getRandom()
@@ -162,7 +162,7 @@ export default class Database extends EventEmitter {
         const encryptedPrivkey = await crypto.encryptAssymetric(keys.privateKeyArmored, this.profile.activeKeyPair.public_key_armored)
 
         // init the record object
-        const mutableRecord: I.MutableRecord = {
+        const mutableRecord: MutableRecord = {
           key: null,
           value: {
             version: 0,
@@ -196,8 +196,8 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public readMutableRecord(record: I.MutableRecord): Promise<I.MutableRecord> {
-    return new Promise<I.MutableRecord> (async (resolve, reject) => {
+  public readMutableRecord(record: MutableRecord): Promise<MutableRecord> {
+    return new Promise<MutableRecord> (async (resolve, reject) => {
       try {
 
         let unsignedValue = { ...record.value }
@@ -229,8 +229,8 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public updateMutableRecord(update: any, record: I.MutableRecord): Promise<I.MutableRecord> {
-    return new Promise<I.MutableRecord> (async (resolve, reject) => {
+  public updateMutableRecord(update: any, record: MutableRecord): Promise<MutableRecord> {
+    return new Promise<MutableRecord> (async (resolve, reject) => {
       try {
         // assume the record is opened
         const { encodedValue, encoding } = this.encodeValue(update)
@@ -259,7 +259,7 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public put(record: I.MutableRecord | I.ImmutableRecord): Promise<void> {
+  public put(record: MutableRecord | ImmutableRecord): Promise<void> {
     return new Promise<void> (async (resolve, reject) => {
       try {
         await this.storage.put(record.key, JSON.stringify(record.value))
@@ -272,8 +272,8 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public get(key: string): Promise<I.MutableValue | I.ImmutableValue> {
-    return new Promise<I.MutableValue | I.ImmutableValue> (async (resolve, reject) => {
+  public get(key: string): Promise<MutableValue | ImmutableValue> {
+    return new Promise<MutableValue | ImmutableValue> (async (resolve, reject) => {
       try {
         const stringValue = await this.storage.get(key)
         const value = JSON.parse(stringValue)
@@ -305,11 +305,11 @@ export default class Database extends EventEmitter {
     // it will check the contract id against the ledger
     // compute the shards, and see if it is closest for any shards from the tracker
 
-  public createShardIndex(contract: any): Promise<I.ShardIndex> {
-    return new Promise<I.ShardIndex> (async (resolve, reject) => {
+  public createShardIndex(contract: any): Promise<ShardIndex> {
+    return new Promise<ShardIndex> (async (resolve, reject) => {
       try {
         const count = contract.reserved / 100000000
-        const shardIndex: I.ShardIndex = {
+        const shardIndex: ShardIndex = {
           contract: contract.id,
           size: contract.size,
           count: count,
@@ -331,11 +331,11 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public createShard(shardId: string, contractId: string): Promise<I.Shard> {
-    return new Promise<I.Shard> (async (resolve, reject) => {
+  public createShard(shardId: string, contractId: string): Promise<Shard> {
+    return new Promise<Shard> (async (resolve, reject) => {
       try {
 
-        const shard: I.Shard = {
+        const shard: Shard = {
           id: shardId,
           contract: contractId,
           size: 0,
@@ -355,8 +355,8 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public getShard(shardId: string): Promise<I.Shard> {
-    return new Promise<I.Shard> (async (resolve, reject) => {
+  public getShard(shardId: string): Promise<Shard> {
+    return new Promise<Shard> (async (resolve, reject) => {
       try {
         const stringShard = await this.storage.get(shardId)
         const shard = JSON.parse(stringShard)
@@ -382,8 +382,8 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public addRecordToShard(shardId: string, record: I.MutableRecord | I.ImmutableRecord): Promise<I.Shard> {
-    return new Promise<I.Shard> (async (resolve, reject) => {
+  public addRecordToShard(shardId: string, record: MutableRecord | ImmutableRecord): Promise<Shard> {
+    return new Promise<Shard> (async (resolve, reject) => {
       try {
         const shard = await this.getShard(shardId)
         shard.size += record.value.size
@@ -398,8 +398,8 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public updateRecordInShard(shardId: string, sizeDelta: number): Promise<I.Shard> {
-    return new Promise<I.Shard> (async (resolve, reject) => {
+  public updateRecordInShard(shardId: string, sizeDelta: number): Promise<Shard> {
+    return new Promise<Shard> (async (resolve, reject) => {
       try {
         const shard = await this.getShard(shardId)
         shard.size += sizeDelta
@@ -413,8 +413,8 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public removeRecordFromShard(shardId: string, record: I.MutableRecord | I.ImmutableRecord): Promise<I.Shard> {
-    return new Promise<I.Shard> (async (resolve, reject) => {
+  public removeRecordFromShard(shardId: string, record: MutableRecord | ImmutableRecord): Promise<Shard> {
+    return new Promise<Shard> (async (resolve, reject) => {
       try {
         const shard = await this.getShard(shardId)
         shard.size -= record.value.size
@@ -523,12 +523,12 @@ export default class Database extends EventEmitter {
   public computeHostsforShards(shardIds: string[], replication: number) {
     // returns the closest hosts for each shard based on replication factor and host pledge using weighted rendezvous hashing
     const destinations = this.getDestinations()
-    const shards: I.ShardMap[] = []
+    const shards: ShardMap[] = []
     shardIds.forEach(shardId => {
       const hash = crypto.getHash64(shardId)
       const binaryHosts = pickDestinations(hash, destinations, replication)
       const stringHosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'))
-      const shard: I.ShardMap = {
+      const shard: ShardMap = {
         id: shardId,
         hosts: stringHosts
       }
