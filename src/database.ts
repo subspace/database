@@ -1,6 +1,5 @@
 import {ImmutableRecord, ImmutableValue, MutableRecord, MutableValue, Shard, ShardIndex, ShardMap} from './interfaces'
 import * as crypto from '@subspace/crypto'
-import {EventEmitter} from 'events'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
 
@@ -16,13 +15,12 @@ export const PLEDGE_SIZE = SHARD_SIZE * 100;
 // ToDo
   // use sub-level-down to create a namespaced databases
 
-export default class Database extends EventEmitter {
+export default class Database {
   constructor(
     private storage: any,
     private profile: any,
     private tracker: any,
   ) {
-    super()
     this.storage.get('shards', (shards: string) => {
       if(!shards) {
         this.storage.put('shards', JSON.stringify([]))
