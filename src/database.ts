@@ -95,213 +95,142 @@ export default class Database extends EventEmitter {
     return value
   }
 
-  public createImmutableRecord(value: any, contract: string): Promise<ImmutableRecord> {
-    return new Promise<ImmutableRecord> (async (resolve, reject) => {
-      try {
-        const { encodedValue, encoding } = this.encodeValue(value)
-        const symkey = crypto.getRandom()
-        const encryptedValue = await crypto.encryptSymmetric(encodedValue, symkey)
-        const encryptedSymkey = await crypto.encryptAssymetric(symkey, this.profile.activeKeyPair.public_key_armored)
+  public async createImmutableRecord(value: any, contract: string): Promise<ImmutableRecord> {
+    const { encodedValue, encoding } = this.encodeValue(value)
+    const symkey = crypto.getRandom()
+    const encryptedValue = await crypto.encryptSymmetric(encodedValue, symkey)
+    const encryptedSymkey = await crypto.encryptAssymetric(symkey, this.profile.activeKeyPair.public_key_armored)
 
-        const immutableRecord: ImmutableRecord = {
-          key: null,
-          value: {
-            version: 0,
-            encoding: encoding,
-            symkey: encryptedSymkey,
-            content: encryptedValue,
-            owner: this.profile.user.hexId,
-            contract: contract,
-            timestamp: Date.now(),
-            size: null
-          }
-        }
+    const immutableRecord: ImmutableRecord = {
+      key: null,
+      value: {
+        version: 0,
+        encoding: encoding,
+        symkey: encryptedSymkey,
+        content: encryptedValue,
+        owner: this.profile.user.hexId,
+        contract: contract,
+        timestamp: Date.now(),
+        size: null
+      }
+    }
 
-        // add the size of partial record, size integer, and detached signature
-        const size = Buffer.byteLength(JSON.stringify(immutableRecord.value))
-        const sizeOfSize = Buffer.byteLength(size.toString())
-        immutableRecord.value.size = size + sizeOfSize + 96
-        immutableRecord.key = crypto.getHash(JSON.stringify(immutableRecord.value))
-        resolve(immutableRecord)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+    // add the size of partial record, size integer, and detached signature
+    const size = Buffer.byteLength(JSON.stringify(immutableRecord.value))
+    const sizeOfSize = Buffer.byteLength(size.toString())
+    immutableRecord.value.size = size + sizeOfSize + 96
+    immutableRecord.key = crypto.getHash(JSON.stringify(immutableRecord.value))
+    return immutableRecord
   }
 
-  public readImmutableRecord(record: ImmutableRecord): Promise<ImmutableRecord> {
-    return new Promise<ImmutableRecord> (async (resolve, reject) => {
-      try {
+  public async readImmutableRecord(record: ImmutableRecord): Promise<ImmutableRecord> {
+    const valid = crypto.isValidHash(record.key, JSON.stringify(record.value))
 
-        const valid = crypto.isValidHash(record.key, JSON.stringify(record.value))
+    if (!valid) {
+      throw new Error('Invalid hash for immutable record on read')
+    }
 
-        if (!valid) {
-          const error = new Error('Invalid hash for immutable record on read')
-          reject(error)
-        }
-
-        record.value.symkey = await crypto.decryptAssymetric(record.value.symkey, this.profile.activeKeyPair.privateKeyObject)
-        const encodedValue = await crypto.decryptSymmetric(record.value.content, record.value.symkey)
-        record.value.content = this.decodeValue(encodedValue, record.value.encoding)
-        resolve(record)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+    record.value.symkey = await crypto.decryptAssymetric(record.value.symkey, this.profile.activeKeyPair.privateKeyObject)
+    const encodedValue = await crypto.decryptSymmetric(record.value.content, record.value.symkey)
+    record.value.content = this.decodeValue(encodedValue, record.value.encoding)
+    return record
   }
 
-  public createMutableRecord(value: any, contract: string): Promise<MutableRecord> {
-    return new Promise<MutableRecord> (async (resolve, reject) => {
-      try {
-        const keys: any = await crypto.generateKeys(null)
-        const symkey = crypto.getRandom()
-        const { encodedValue, encoding } = this.encodeValue(value)
-        const hash = crypto.getHash(encodedValue)
-        const encryptedValue = await crypto.encryptSymmetric(encodedValue, symkey)
-        const encryptedSymkey = await crypto.encryptAssymetric(symkey, keys.publicKeyArmored)
-        const encryptedPrivkey = await crypto.encryptAssymetric(keys.privateKeyArmored, this.profile.activeKeyPair.public_key_armored)
+  public async createMutableRecord(value: any, contract: string): Promise<MutableRecord> {
+    const keys: any = await crypto.generateKeys(null)
+    const symkey = crypto.getRandom()
+    const { encodedValue, encoding } = this.encodeValue(value)
+    const hash = crypto.getHash(encodedValue)
+    const encryptedValue = await crypto.encryptSymmetric(encodedValue, symkey)
+    const encryptedSymkey = await crypto.encryptAssymetric(symkey, keys.publicKeyArmored)
+    const encryptedPrivkey = await crypto.encryptAssymetric(keys.privateKeyArmored, this.profile.activeKeyPair.public_key_armored)
 
-        // init the record object
-        const mutableRecord: MutableRecord = {
-          key: null,
-          value: {
-            version: 0,
-            encoding: encoding,
-            symkey: encryptedSymkey,
-            pubkey: keys.publicKeyArmored,
-            privkey: encryptedPrivkey,
-            content: encryptedValue,
-            owner: this.profile.user.hexId,
-            contract: contract,
-            revision: 0,
-            timestamp: Date.now(),
-            size: null,
-            contentHash: hash,
-            signature: null
-          }
-        }
-
-        // add the size of partial record, size integer, and detached signature
-        const size = Buffer.byteLength(JSON.stringify(mutableRecord.value))
-        const sizeOfSize = Buffer.byteLength(size.toString())
-        mutableRecord.value.size = size + sizeOfSize + 96
-        mutableRecord.value.signature = await crypto.sign(mutableRecord.value, mutableRecord.value.pubkey)
-
-        resolve(mutableRecord)
+    // init the record object
+    const mutableRecord: MutableRecord = {
+      key: null,
+      value: {
+        version: 0,
+        encoding: encoding,
+        symkey: encryptedSymkey,
+        pubkey: keys.publicKeyArmored,
+        privkey: encryptedPrivkey,
+        content: encryptedValue,
+        owner: this.profile.user.hexId,
+        contract: contract,
+        revision: 0,
+        timestamp: Date.now(),
+        size: null,
+        contentHash: hash,
+        signature: null
       }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+    }
+
+    // add the size of partial record, size integer, and detached signature
+    const size = Buffer.byteLength(JSON.stringify(mutableRecord.value))
+    const sizeOfSize = Buffer.byteLength(size.toString())
+    mutableRecord.value.size = size + sizeOfSize + 96
+    mutableRecord.value.signature = await crypto.sign(mutableRecord.value, mutableRecord.value.pubkey)
+
+    return mutableRecord
   }
 
-  public readMutableRecord(record: MutableRecord): Promise<MutableRecord> {
-    return new Promise<MutableRecord> (async (resolve, reject) => {
-      try {
+  public async readMutableRecord(record: MutableRecord): Promise<MutableRecord> {
+    let unsignedValue = { ...record.value }
+    unsignedValue.signature = null
+    record.value.privkey = await crypto.decryptAssymetric(record.value.privkey, this.profile.activeKeyPair.privateKeyObject)
+    const validSignature = await crypto.isValidSignature(unsignedValue, record.value.signature, record.value.privkey)
+    if (!validSignature) {
+      const sigError = new Error('Invalid signature for mutable record on read')
+      reject(sigError)
+    }
 
-        let unsignedValue = { ...record.value }
-        unsignedValue.signature = null
-        record.value.privkey = await crypto.decryptAssymetric(record.value.privkey, this.profile.activeKeyPair.privateKeyObject)
-        const validSignature = await crypto.isValidSignature(unsignedValue, record.value.signature, record.value.privkey)
-        if (!validSignature) {
-          const sigError = new Error('Invalid signature for mutable record on read')
-          reject(sigError)
-        }
+    const privateKeyObject = await crypto.getPrivateKeyObject(record.value.privkey, 'passphrase')
+    record.value.symkey = await crypto.decryptAssymetric(record.value.symkey, privateKeyObject)
+    record.value.content = await crypto.decryptSymmetric(record.value.content, record.value.symkey)
+    record.value.content = this.decodeValue(record.value.content, record.value.encoding)
+    const validHash = crypto.isValidHash(record.value.contentHash, record.value.content)
 
-        const privateKeyObject = await crypto.getPrivateKeyObject(record.value.privkey, 'passphrase')
-        record.value.symkey = await crypto.decryptAssymetric(record.value.symkey, privateKeyObject)
-        record.value.content = await crypto.decryptSymmetric(record.value.content, record.value.symkey)
-        record.value.content = this.decodeValue(record.value.content, record.value.encoding)
-        const validHash = crypto.isValidHash(record.value.contentHash, record.value.content)
+    if (!validHash) {
+      throw new Error('Invalid hash for mutable record')
+    }
 
-        if (!validHash) {
-          let hashError = new Error('Invalid hash for mutable record')
-          reject(hashError)
-        }
-
-        resolve(record)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+    return record
   }
 
-  public updateMutableRecord(update: any, record: MutableRecord): Promise<MutableRecord> {
-    return new Promise<MutableRecord> (async (resolve, reject) => {
-      try {
-        // assume the record is opened
-        const { encodedValue, encoding } = this.encodeValue(update)
-        const hash = crypto.getHash(encodedValue)
-        const encryptedValue = await crypto.encryptSymmetric(encodedValue, record.value.symkey)
-        const encryptedSymkey = await crypto.encryptAssymetric(record.value.symkey, record.value.pubkey)
-        const encryptedPrivkey = await crypto.encryptAssymetric(record.value.privkey, this.profile.activeKeyPair.public_key_armored)
+  public async updateMutableRecord(update: any, record: MutableRecord): Promise<MutableRecord> {
+    // assume the record is opened
+    const { encodedValue, encoding } = this.encodeValue(update)
+    const hash = crypto.getHash(encodedValue)
+    const encryptedValue = await crypto.encryptSymmetric(encodedValue, record.value.symkey)
+    const encryptedSymkey = await crypto.encryptAssymetric(record.value.symkey, record.value.pubkey)
+    const encryptedPrivkey = await crypto.encryptAssymetric(record.value.privkey, this.profile.activeKeyPair.public_key_armored)
 
-        record.value.encoding = encoding
-        record.value.content = encryptedValue
-        record.value.symkey = encryptedSymkey
-        record.value.privkey = encryptedPrivkey
-        record.value.contentHash = hash
-        record.value.timestamp = Date.now()
-        record.value.revision += 1
+    record.value.encoding = encoding
+    record.value.content = encryptedValue
+    record.value.symkey = encryptedSymkey
+    record.value.privkey = encryptedPrivkey
+    record.value.contentHash = hash
+    record.value.timestamp = Date.now()
+    record.value.revision += 1
 
-        const unsignedValue = { ...record.value }
-        unsignedValue.signature = null
-        record.value.signature = await crypto.sign(unsignedValue, record.value.pubkey)
-        resolve(record)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+    const unsignedValue = { ...record.value }
+    unsignedValue.signature = null
+    record.value.signature = await crypto.sign(unsignedValue, record.value.pubkey)
+    return record
   }
 
-  public put(record: MutableRecord | ImmutableRecord): Promise<void> {
-    return new Promise<void> (async (resolve, reject) => {
-      try {
-        await this.storage.put(record.key, JSON.stringify(record.value))
-        resolve()
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+  public async put(record: MutableRecord | ImmutableRecord): Promise<void> {
+    await this.storage.put(record.key, JSON.stringify(record.value))
   }
 
-  public get(key: string): Promise<MutableValue | ImmutableValue> {
-    return new Promise<MutableValue | ImmutableValue> (async (resolve, reject) => {
-      try {
-        const stringValue = await this.storage.get(key)
-        const value = JSON.parse(stringValue)
-        resolve(value)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+  public async get(key: string): Promise<MutableValue | ImmutableValue> {
+    const stringValue = await this.storage.get(key)
+    return JSON.parse(stringValue)
   }
 
-  public del(key: string): Promise<void> {
-    return new Promise<void> (async (resolve, reject) => {
-      try {
-        // later implement full delete by rewriting garbage to the same location in memory
-        await this.storage.del(key)
-        resolve()
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+  public async del(key: string): Promise<void> {
+    // later implement full delete by rewriting garbage to the same location in memory
+    await this.storage.del(key)
   }
 
   // how shards work
@@ -309,191 +238,103 @@ export default class Database extends EventEmitter {
     // it will check the contract id against the ledger
     // compute the shards, and see if it is closest for any shards from the tracker
 
-  public createShardIndex(contract: any): Promise<ShardIndex> {
-    return new Promise<ShardIndex> (async (resolve, reject) => {
-      try {
-        const count = contract.reserved / SHARD_SIZE
-        const shardIndex: ShardIndex = {
-          contract: contract.id,
-          size: contract.size,
-          count: count,
-          shards: []
-        }
+  public async createShardIndex(contract: any): Promise<ShardIndex> {
+    const count = contract.reserved / SHARD_SIZE
+    const shardIndex: ShardIndex = {
+      contract: contract.id,
+      size: contract.size,
+      count: count,
+      shards: []
+    }
 
-        let hash = contract.id
+    let hash = contract.id
 
-        for (let i = 0; i < count; i++) {
-          hash = crypto.getHash(hash)
-          shardIndex.shards.push(hash)
-        }
-        resolve(shardIndex)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
+    for (let i = 0; i < count; i++) {
+      hash = crypto.getHash(hash)
+      shardIndex.shards.push(hash)
+    }
+    return shardIndex
+  }
+
+  public async createShard(shardId: string, contractId: string): Promise<Shard> {
+    const shard: Shard = {
+      id: shardId,
+      contract: contractId,
+      size: 0,
+      records: []
+    }
+
+    const shards = JSON.parse( await this.storage.get('shards'))
+    shards.push(shard.id)
+    await this.storage.put('shards', JSON.stringify(shards))
+    await this.storage.put(shardId, JSON.stringify(shard))
+    return shard
+  }
+
+  public async getShard(shardId: string): Promise<Shard> {
+    const stringShard = await this.storage.get(shardId)
+    return JSON.parse(stringShard)
+  }
+
+  public async getAllShards(): Promise<string[]> {
+    return JSON.parse(
+      await this.storage.get('shards')
+    )
+  }
+
+  public async addRecordToShard(shardId: string, record: MutableRecord | ImmutableRecord): Promise<Shard> {
+    const shard = await this.getShard(shardId)
+    shard.size += record.value.size
+    shard.records.push(record.key)
+    await this.storage.put(shard.id, JSON.stringify(shard))
+    return shard
+  }
+
+  public async updateRecordInShard(shardId: string, sizeDelta: number): Promise<Shard> {
+    const shard = await this.getShard(shardId)
+    shard.size += sizeDelta
+    await this.storage.put(shard.id, JSON.stringify(shard))
+    return shard
+  }
+
+  public async removeRecordFromShard(shardId: string, record: MutableRecord | ImmutableRecord): Promise<Shard> {
+    const shard = await this.getShard(shardId)
+    shard.size -= record.value.size
+    shard.records = shard.records.filter(r => r !== record.key)
+    await this.storage.put(shard.id, JSON.stringify(shard))
+    return shard
+  }
+
+  public async deleteShardAndRecords(shardId: string): Promise<void> {
+    const shard = await this.getShard(shardId)
+    shard.records.forEach(async record => {
+      await this.storage.del(record)
     })
+    await this.storage.del(shardId)
+    let shards: string[] = JSON.parse( await this.storage.get('shards'))
+    shards = shards.filter(shard => shard !== shardId)
+    await this.storage.put('shards', JSON.stringify(shards))
   }
 
-  public createShard(shardId: string, contractId: string): Promise<Shard> {
-    return new Promise<Shard> (async (resolve, reject) => {
-      try {
-
-        const shard: Shard = {
-          id: shardId,
-          contract: contractId,
-          size: 0,
-          records: []
-        }
-
-        const shards = JSON.parse( await this.storage.get('shards'))
-        shards.push(shard.id)
-        await this.storage.put('shards', JSON.stringify(shards))
-        await this.storage.put(shardId, JSON.stringify(shard))
-        resolve(shard)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+  public async getAllRecordKeys(): Promise<string[]> {
+    let keys: string[] = []
+    const shards = await this.getAllShards()
+    for (const shardId of shards) {
+      const shard = await this.getShard(shardId)
+      keys = keys.concat(shard.records)
+    }
+    return keys
   }
 
-  public getShard(shardId: string): Promise<Shard> {
-    return new Promise<Shard> (async (resolve, reject) => {
-      try {
-        const stringShard = await this.storage.get(shardId)
-        const shard = JSON.parse(stringShard)
-        resolve(shard)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+  public async getLengthOfAllRecords(): Promise<number> {
+    const keys = await this.getAllRecordKeys()
+    return keys.length
   }
 
-  public getAllShards(): Promise<string[]> {
-    return new Promise<string[]> (async (resolve, reject) => {
-      try {
-        const shards = JSON.parse( await this.storage.get('shards'))
-        resolve(shards)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
-  }
-
-  public addRecordToShard(shardId: string, record: MutableRecord | ImmutableRecord): Promise<Shard> {
-    return new Promise<Shard> (async (resolve, reject) => {
-      try {
-        const shard = await this.getShard(shardId)
-        shard.size += record.value.size
-        shard.records.push(record.key)
-        await this.storage.put(shard.id, JSON.stringify(shard))
-        resolve(shard)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
-  }
-
-  public updateRecordInShard(shardId: string, sizeDelta: number): Promise<Shard> {
-    return new Promise<Shard> (async (resolve, reject) => {
-      try {
-        const shard = await this.getShard(shardId)
-        shard.size += sizeDelta
-        await this.storage.put(shard.id, JSON.stringify(shard))
-        resolve(shard)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
-  }
-
-  public removeRecordFromShard(shardId: string, record: MutableRecord | ImmutableRecord): Promise<Shard> {
-    return new Promise<Shard> (async (resolve, reject) => {
-      try {
-        const shard = await this.getShard(shardId)
-        shard.size -= record.value.size
-        shard.records = shard.records.filter(r => r !== record.key)
-        await this.storage.put(shard.id, JSON.stringify(shard))
-        resolve(shard)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
-  }
-
-  public deleteShardAndRecords(shardId: string): Promise<void> {
-    return new Promise<void> (async (resolve, reject) => {
-      try {
-        const shard = await this.getShard(shardId)
-        shard.records.forEach(async record => {
-          await this.storage.del(record)
-        })
-        await this.storage.del(shardId)
-        let shards: string[] = JSON.parse( await this.storage.get('shards'))
-        shards = shards.filter(shard => shard !== shardId)
-        await this.storage.put('shards', JSON.stringify(shards))
-        resolve()
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
-  }
-
-  public getAllRecordKeys(): Promise<string[]> {
-    return new Promise<string[]> (async (resolve, reject) => {
-      try {
-        let keys: string[] = []
-        const shards = await this.getAllShards()
-        shards.forEach(async shardId => {
-          const shard = await this.getShard(shardId)
-          keys = keys.concat(shard.records)
-        })
-
-        resolve(keys)
-      }
-      return keys
-  }
-
-  public getLengthOfAllRecords(): Promise<number> {
-    return new Promise<number> (async (resolve, reject) => {
-      try {
-        const keys = await this.getAllRecordKeys()
-        resolve(keys.length)
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
-  }
-
-  public deleteAllShardsAndRecords(): Promise<void> {
-    return new Promise<void> (async (resolve, reject) => {
-      try {
-        const shards = await this.getAllShards()
-        shards.forEach(async shardId => {
-          await this.deleteShardAndRecords(shardId)
-        })
-        resolve()
-      }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
+  public async deleteAllShardsAndRecords(): Promise<void> {
+    const shards = await this.getAllShards()
+    shards.forEach(async shardId => {
+      await this.deleteShardAndRecords(shardId)
     })
   }
 
