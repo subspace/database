@@ -57,6 +57,36 @@ Updates an exisiting mutable record to a new value.
 
 Returns the encoded & encrypted update mutable object as it will be stored on subspace.
 
+### database.create(record: object) :  Error
+Adds a new record to the local database. 
+
+* `record` - a new ImmutableRecord or MutableRecord
+
+Optionally returns an error.
+
+### database.read(key: string) :  Value: Object | Error
+Gets an existing record from the local database. 
+
+* `key` - string encoded 32 btye record key
+
+Returns the value of the corresponsing mutable or immutable record. Optionally returns an error
+
+### database.update(record: object) :  Error
+Updates an existing mutable record in the local database. 
+
+* `record` - updated version of existing MutableRecord
+
+Optionally returns an error.
+
+### database.delete(key: string) :  Error
+Removes an existing record from the local database.
+
+* `key` - string encoded 32 btye record key
+
+Optionally returns an error.
+
+
+
 ## Development usage
 
 Clone and install the repo locally   
