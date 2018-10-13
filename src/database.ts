@@ -1,6 +1,6 @@
-import {ImmutableRecord, ImmutableValue, MutableRecord, MutableValue, Shard, ShardIndex} from './interfaces'
+import {ImmutableRecord, ImmutableValue, MutableRecord, MutableValue, Shard, ShardIndex, ShardMap} from './interfaces'
 import * as crypto from '@subspace/crypto'
-import { EventEmitter } from 'events'
+import {EventEmitter} from 'events'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
 
@@ -321,7 +321,7 @@ export default class Database extends EventEmitter {
     const shards = await this.getAllShards()
     for (const shardId of shards) {
       const shard = await this.getShard(shardId)
-      keys = keys.concat(shard.records)
+      keys.push(...shard.records)
     }
     return keys
   }
@@ -361,21 +361,18 @@ export default class Database extends EventEmitter {
     return destinations
   }
 
-  public computeHostsforShards(shardIds: string[], replication: number) {
+  public computeHostsforShards(shardIds: string[], replication: number): ShardMap[] {
     // returns the closest hosts for each shard based on replication factor and host pledge using weighted rendezvous hashing
     const destinations = this.getDestinations()
-    const shards: ShardMap[] = []
-    shardIds.forEach(shardId => {
+    return shardIds.map(shardId => {
       const hash = crypto.getHash64(shardId)
       const binaryHosts = pickDestinations(hash, destinations, replication)
       const stringHosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'))
-      const shard: ShardMap = {
+      return {
         id: shardId,
         hosts: stringHosts
       }
-      shards.push(shard)
     })
-    return shards
   }
 
   public computeShardForKey(key: string, contractSize: number) {
