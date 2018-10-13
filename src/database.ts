@@ -13,8 +13,6 @@ export const SHARD_SIZE = 100000000;
   // use sub-level-down to create a namespaced databases
 
 export default class Database extends EventEmitter {
-
-
   constructor(
     private storage: any,
     private profile: any,
@@ -338,10 +336,10 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public computeShards(contractId: string, contractSize: number) {
+  public computeShards(contractId: string, contractSize: number): string[] {
     // returns an array of shardIds for a contract
     let hash = contractId
-    let shards = []
+    let shards: string[] = []
     const count = contractSize / SHARD_SIZE
     for (let i = 0; i < count; i++) {
       hash = crypto.getHash(hash)
@@ -374,7 +372,7 @@ export default class Database extends EventEmitter {
     })
   }
 
-  public computeShardForKey(key: string, contractSize: number) {
+  public computeShardForKey(key: string, contractSize: number): number {
     // retuns the correct shard number for a record given a key and a contract size
     // uses jump consistent hashing
     const hash = crypto.getHash64(key)
@@ -382,7 +380,7 @@ export default class Database extends EventEmitter {
     return jumpConsistentHash(hash, buckets)
   }
 
-  public computeHostsForKey(key: string, contractId: string, contractSize: number, replication: number) {
+  public computeHostsForKey(key: string, contractId: string, contractSize: number, replication: number): string[] {
     // return the correct hosts for a given key
     const shards = this.computeShards(contractId, contractSize)
     const shardIndex = this.computeShardForKey(key, contractSize)
