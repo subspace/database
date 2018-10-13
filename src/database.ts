@@ -4,6 +4,10 @@ import { EventEmitter } from 'events'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
 
+/**
+ * Size of one shard in bytes
+ */
+export const SHARD_SIZE = 100000000;
 
 // ToDo
   // use sub-level-down to create a namespaced databases
@@ -308,7 +312,7 @@ export default class Database extends EventEmitter {
   public createShardIndex(contract: any): Promise<ShardIndex> {
     return new Promise<ShardIndex> (async (resolve, reject) => {
       try {
-        const count = contract.reserved / 100000000
+        const count = contract.reserved / SHARD_SIZE
         const shardIndex: ShardIndex = {
           contract: contract.id,
           size: contract.size,
@@ -461,11 +465,7 @@ export default class Database extends EventEmitter {
 
         resolve(keys)
       }
-      catch(error) {
-        this.emit('error', error)
-        reject(error)
-      }
-    })
+      return keys
   }
 
   public getLengthOfAllRecords(): Promise<number> {
@@ -501,7 +501,7 @@ export default class Database extends EventEmitter {
     // returns an array of shardIds for a contract
     let hash = contractId
     let shards = []
-    const count = contractSize / 100000000
+    const count = contractSize / SHARD_SIZE
     for (let i = 0; i < count; i++) {
       hash = crypto.getHash(hash)
       shards.push(hash)
@@ -541,7 +541,7 @@ export default class Database extends EventEmitter {
     // retuns the correct shard number for a record given a key and a contract size
     // uses jump consistent hashing
     const hash = crypto.getHash64(key)
-    const buckets = contractSize / 100000000
+    const buckets = contractSize / SHARD_SIZE
     return jumpConsistentHash(hash, buckets)
   }
 
