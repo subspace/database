@@ -180,8 +180,7 @@ export default class Database {
     record.value.privkey = await crypto.decryptAssymetric(record.value.privkey, this.profile.activeKeyPair.privateKeyObject)
     const validSignature = await crypto.isValidSignature(unsignedValue, record.value.signature, record.value.privkey)
     if (!validSignature) {
-      const sigError = new Error('Invalid signature for mutable record on read')
-      reject(sigError)
+      throw new Error('Invalid signature for mutable record on read')
     }
 
     const privateKeyObject = await crypto.getPrivateKeyObject(record.value.privkey, 'passphrase')
@@ -342,11 +341,11 @@ export default class Database {
     // returns an array of shardIds for a contract
     let hash = contractId
     let shards: string[] = []
-    const count = contractSize / SHARD_SIZE
-    if (count % 1) {
+    const numberOfShards = contractSize / SHARD_SIZE
+    if (numberOfShards % 1) {
       throw new Error('Incorrect contract size')
     }
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < numberOfShards; i++) {
       hash = crypto.getHash(hash)
       shards.push(hash)
     }
@@ -379,14 +378,14 @@ export default class Database {
   }
 
   public computeShardForKey(key: string, contractSize: number): number {
-    // retuns the correct shard number for a record given a key and a contract size
+    // returns the correct shard number for a record given a key and a contract size
     // uses jump consistent hashing
     const hash = crypto.getHash64(key)
-    const buckets = contractSize / SHARD_SIZE
-    if (count % 1) {
+    const numberOfShards = contractSize / SHARD_SIZE
+    if (numberOfShards % 1) {
       throw new Error('Incorrect contract size')
     }
-    return jumpConsistentHash(hash, buckets)
+    return jumpConsistentHash(hash, numberOfShards)
   }
 
   public computeHostsForKey(key: string, contractId: string, contractSize: number, replicationFactor: number): string[] {
