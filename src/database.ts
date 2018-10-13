@@ -1,4 +1,4 @@
-import {ImmutableRecord, ImmutableValue, MutableRecord, MutableValue, Shard, ShardIndex, ShardMap} from './interfaces'
+import {IImmutableRecord, IMutableRecord, IRecord, IValue, Shard, ShardIndex, ShardMap} from './interfaces'
 import * as crypto from '@subspace/crypto'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
@@ -95,13 +95,13 @@ export default class Database {
     return value
   }
 
-  public async createImmutableRecord(value: any, contract: string): Promise<ImmutableRecord> {
+  public async createImmutableRecord(value: any, contract: string): Promise<IImmutableRecord> {
     const { encodedValue, encoding } = this.encodeValue(value)
     const symkey = crypto.getRandom()
     const encryptedValue = await crypto.encryptSymmetric(encodedValue, symkey)
     const encryptedSymkey = await crypto.encryptAssymetric(symkey, this.profile.activeKeyPair.public_key_armored)
 
-    const immutableRecord: ImmutableRecord = {
+    const immutableRecord: IImmutableRecord = {
       key: null,
       value: {
         version: 0,
@@ -123,7 +123,7 @@ export default class Database {
     return immutableRecord
   }
 
-  public async readImmutableRecord(record: ImmutableRecord): Promise<ImmutableRecord> {
+  public async readImmutableRecord(record: IImmutableRecord): Promise<IImmutableRecord> {
     const valid = crypto.isValidHash(record.key, JSON.stringify(record.value))
 
     if (!valid) {
@@ -136,7 +136,7 @@ export default class Database {
     return record
   }
 
-  public async createMutableRecord(value: any, contract: string): Promise<MutableRecord> {
+  public async createMutableRecord(value: any, contract: string): Promise<IMutableRecord> {
     const keys: any = await crypto.generateKeys(null)
     const symkey = crypto.getRandom()
     const { encodedValue, encoding } = this.encodeValue(value)
@@ -146,7 +146,7 @@ export default class Database {
     const encryptedPrivkey = await crypto.encryptAssymetric(keys.privateKeyArmored, this.profile.activeKeyPair.public_key_armored)
 
     // init the record object
-    const mutableRecord: MutableRecord = {
+    const mutableRecord: IMutableRecord = {
       key: null,
       value: {
         version: 0,
@@ -174,7 +174,7 @@ export default class Database {
     return mutableRecord
   }
 
-  public async readMutableRecord(record: MutableRecord): Promise<MutableRecord> {
+  public async readMutableRecord(record: IMutableRecord): Promise<IMutableRecord> {
     let unsignedValue = { ...record.value }
     unsignedValue.signature = null
     record.value.privkey = await crypto.decryptAssymetric(record.value.privkey, this.profile.activeKeyPair.privateKeyObject)
@@ -196,7 +196,7 @@ export default class Database {
     return record
   }
 
-  public async updateMutableRecord(update: any, record: MutableRecord): Promise<MutableRecord> {
+  public async updateMutableRecord(update: any, record: IMutableRecord): Promise<IMutableRecord> {
     // assume the record is opened
     const { encodedValue, encoding } = this.encodeValue(update)
     const hash = crypto.getHash(encodedValue)
@@ -218,11 +218,11 @@ export default class Database {
     return record
   }
 
-  public async put(record: MutableRecord | ImmutableRecord): Promise<void> {
+  public async put(record: IRecord): Promise<void> {
     await this.storage.put(record.key, JSON.stringify(record.value))
   }
 
-  public async get(key: string): Promise<MutableValue | ImmutableValue> {
+  public async get(key: string): Promise<IValue> {
     const stringValue = await this.storage.get(key)
     return JSON.parse(stringValue)
   }
@@ -281,7 +281,7 @@ export default class Database {
     )
   }
 
-  public async addRecordToShard(shardId: string, record: MutableRecord | ImmutableRecord): Promise<Shard> {
+  public async addRecordToShard(shardId: string, record: IRecord): Promise<Shard> {
     const shard = await this.getShard(shardId)
     shard.size += record.value.size
     shard.records.push(record.key)
@@ -296,7 +296,7 @@ export default class Database {
     return shard
   }
 
-  public async removeRecordFromShard(shardId: string, record: MutableRecord | ImmutableRecord): Promise<Shard> {
+  public async removeRecordFromShard(shardId: string, record: IRecord): Promise<Shard> {
     const shard = await this.getShard(shardId)
     shard.size -= record.value.size
     shard.records = shard.records.filter(r => r !== record.key)
