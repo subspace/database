@@ -341,6 +341,9 @@ export default class Database extends EventEmitter {
     let hash = contractId
     let shards: string[] = []
     const count = contractSize / SHARD_SIZE
+    if (count % 1) {
+      throw new Error('Incorrect contract size')
+    }
     for (let i = 0; i < count; i++) {
       hash = crypto.getHash(hash)
       shards.push(hash)
@@ -377,6 +380,9 @@ export default class Database extends EventEmitter {
     // uses jump consistent hashing
     const hash = crypto.getHash64(key)
     const buckets = contractSize / SHARD_SIZE
+    if (count % 1) {
+      throw new Error('Incorrect contract size')
+    }
     return jumpConsistentHash(hash, buckets)
   }
 
