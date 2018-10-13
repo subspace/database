@@ -15,7 +15,6 @@ export default class Database extends EventEmitter {
     private storage: any,
     private profile: any,
     private tracker: any,
-    public interfaces: any = I
   ) {
     super()
     this.storage.get('shards', (shards: string) => {
