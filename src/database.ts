@@ -350,15 +350,14 @@ export default class Database extends EventEmitter {
     return shards
   }
 
-  public getDestinations() {
-    const destinations: Destination[] = this.tracker
+  public getDestinations(): Destination[] {
+    return this.tracker
       .getEntries()
       .map((entry: any) => {
-        new Destination(
+        return new Destination(
           crypto.getHash64(entry.hash),
           entry.pledge/10000000000)
       })
-    return destinations
   }
 
   public computeHostsforShards(shardIds: string[], replication: number): ShardMap[] {
