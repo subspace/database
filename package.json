@@ -1,7 +1,7 @@
 {
   "name": "@subspace/database",
   "version": "1.0.0",
-  "main": "dist/main.js",
+  "main": "dist/database.js",
   "author": "subspace",
   "license": "MIT",
   "private": true,
