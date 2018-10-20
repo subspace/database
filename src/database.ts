@@ -519,7 +519,7 @@ export class DataBase implements IDataBase {
   }
 }
 
-export class Record implements IRecord {
+export class Record {
   key: string = null
   value: IValue = null
   constructor () {}
