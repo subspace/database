@@ -1,55 +1,52 @@
+export interface IDataBase {
+    shards: IShards;
+}
+export interface IShards {
+    map: Map<string, IShard>;
+    save(): void;
+    load(): void;
+}
+export interface IShard {
+    contract: string;
+    size: number;
+    records: Set<string>;
+}
 export interface IRecord {
-    kind: 'mutable' | 'immutable';
     key: string;
     value: IValue;
+    encodeContent(content: any): void;
+    decodeContent(): void;
+    update(value: any): void;
+    createPoR(nodeId: string): string;
+    isValidPoR(nodeId: string, proof: string): boolean;
+    createPoD(nodeId: string): string;
+    isValidPoD(nodeId: string, proof: string): boolean;
+    isValid(sender: string): Promise<any>;
+    isValidUpdate(value: IValue, update: IValue): any;
+    decrypt(privateKeyObject: any): Promise<void>;
+    getSize(): number;
+    getRecord(): any;
+    getContent(shardId: string, replicationFactor: number, privateKeyObject: any): Promise<any>;
 }
-export interface IImmutableRecord extends IRecord {
-    kind: 'immutable';
-    value: IImmutableValue;
-}
-export interface IMutableRecord extends IRecord {
-    kind: 'mutable';
-    value: IMutableValue;
-}
-export declare type Record = IImmutableRecord | IMutableRecord;
 export interface IValue {
+    immutable: boolean;
     version: number;
     encoding: string;
     symkey: string;
-    content: string;
+    content: any;
     owner: string;
-    timestamp: number;
+    createdAt: number;
     size: number;
-    contract: string;
-    contractSignature: string;
+    contractKey: string;
+    contractSig: string;
+    publicKey?: string;
+    privateKey?: string;
+    contentHash?: string;
+    revision?: number;
+    updatedAt?: number;
+    recordSig?: string;
 }
-export interface IImmutableValue extends IValue {
-}
-export interface IMutableValue extends IValue {
-    publicKey: string;
-    privateKey: string;
-    contentHash: string;
-    revision: number;
-    recordSignature: string;
-}
-export interface ShardIndex {
-    contract: string;
-    size: number;
-    count: number;
-    shards: string[];
-}
-export interface Shard {
-    id: string;
-    contract: string;
-    size: number;
-    records: string[];
-}
-export interface ShardMap {
-    id: string;
-    hosts: string[];
-}
-export interface IContractObject {
-    kind: 'contractObject';
+export interface IContract {
     id: string;
     owner: string;
     name: string;
@@ -66,13 +63,3 @@ export interface IContractObject {
     privateKey: string;
     privateKeyObject: any;
 }
-export interface IContractData {
-    kind: 'contractData';
-    publicKey: string;
-    clientKey: string;
-    createdAt: number;
-    ttl: number;
-    spaceReserved: number;
-    replicationFactor: number;
-}
-export declare type IContract = IContractObject | IContractData;

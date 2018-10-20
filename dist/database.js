@@ -10,736 +10,382 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const crypto = __importStar(require("@subspace/crypto"));
 const jump_consistent_hash_1 = require("@subspace/jump-consistent-hash");
 const rendezvous_hash_1 = require("@subspace/rendezvous-hash");
-/**
- * Size of one shard in bytes (100M)
- */
-exports.SHARD_SIZE = 100000000;
-/**
- * Pledge size in bytes (100 shards or 10G)
- */
-exports.PLEDGE_SIZE = exports.SHARD_SIZE * 100;
 // ToDo
-// use sub-level-down to create a namespaced databases
-class Database {
-    constructor(storage, wallet, tracker) {
-        this.storage = storage;
+// later add patch method for unecrypted data
+const VALID_ENCODING = ['null', 'string', 'number', 'boolean', 'array', 'object', 'buffer'];
+const MUTABLE_KEY_NAME = 'key';
+const MUTABLE_KEY_EMAIL = 'key@key.com';
+const MUTABLE_KEY_PASSPRHASE = 'lockandkey';
+exports.SHARD_SIZE = 100000000;
+exports.PLEDGE_SIZE = exports.SHARD_SIZE * 100;
+class DataBase {
+    constructor(wallet, storage, tracker) {
         this.wallet = wallet;
+        this.storage = storage;
         this.tracker = tracker;
-        this.storage.get('shards', (shards) => {
-            if (!shards) {
-                this.storage.put('shards', JSON.stringify([]));
-            }
-        });
-    }
-    encodeValue(value) {
-        // determine type and convert to string
-        let encoding = null;
-        if (value === undefined) {
-            throw new Error('Cannot store an undefined value');
-        }
-        else if (value === null) {
-            encoding = 'null',
-                value = 'null';
-        }
-        else if (typeof value === 'string') {
-            encoding = 'string';
-        }
-        else if (typeof value === 'number') {
-            // reject NaN and infinity?
-            encoding = 'number';
-            value = value.toString();
-        }
-        else if (typeof value === 'boolean') {
-            encoding = 'boolean';
-            value = value.toString();
-        }
-        else if (Buffer.isBuffer(value)) {
-            encoding = 'buffer';
-            value = value.toString();
-        }
-        else if (typeof value === 'object' && Array.isArray(value)) {
-            encoding = 'array';
-            value = JSON.stringify(value);
-        }
-        else if (typeof value === 'object') {
-            encoding = 'object';
-            value = JSON.stringify(value);
-        }
-        else {
-            throw new Error('Unknown value type, cannot encode');
-        }
-        return {
-            encodedValue: value,
-            encoding
-        };
-    }
-    decodeValue(encodedValue, encoding) {
-        // convert string encodedValue back to original type
-        let value;
-        switch (encoding) {
-            case 'null':
-                value = null;
-                break;
-            case 'string':
-                value = encodedValue;
-                break;
-            case 'number':
-                value = Number(encodedValue);
-                break;
-            case 'boolean':
-                if (encodedValue === 'true')
-                    value = true;
-                else
-                    value = false;
-                break;
-            case 'array':
-                value = JSON.parse(encodedValue);
-                break;
-            case 'object':
-                value = JSON.parse(encodedValue);
-                break;
-            case 'buffer':
-                value = Buffer.from(encodedValue);
-                break;
-            default:
-                throw new Error('Unknown encoding, cannot decode');
-        }
-        return value;
-    }
-    async createRecord(value, contract, encrypted) {
-        let record;
-        if (contract.ttl) { // mutable record
-            record = await this.createImmutableRecord(value, contract, encrypted);
-        }
-        else { // immutable record
-            record = await this.createMutableRecord(value, contract, encrypted);
-        }
-        return record;
-    }
-    setRecordType(record) {
-        if (record.value.publickey) {
-            record.type = 'mutable';
-        }
-        else {
-            record.type = 'immutable';
-        }
-        const typedRecord = record;
-        return typedRecord;
-    }
-    async readRecord(record) {
-        // generic adapter for mutable and immutable reads
-        // dont validate contract signature if this is not your record
-        let contract = this.wallet.getContract();
-        if (!(contract.id === record.value.contract)) {
-            contract = null;
-        }
-        if (record.kind === 'immutable') {
-            record = await this.readImmutableRecord(record, contract);
-        }
-        if (record.kind === 'mutable') {
-            record = await this.readMutableRecord(record, contract);
-        }
-        return record;
-    }
-    async createImmutableRecord(value, contract, encrypted) {
-        const profile = this.wallet.getProfile();
-        const { encodedValue, encoding } = this.encodeValue(value);
-        let symkey, content = null;
-        if (encrypted) {
-            symkey = crypto.getRandom();
-            content = await crypto.encryptSymmetric(encodedValue, symkey);
-            symkey = await crypto.encryptAssymetric(symkey, profile.publicKey);
-        }
-        else {
-            content = encodedValue;
-        }
-        const immutableRecord = {
-            kind: 'immutable',
-            key: null,
-            value: {
-                version: 0,
-                encoding: encoding,
-                symkey: symkey,
-                content: content,
-                owner: profile.id,
-                contract: contract.id,
-                timestamp: Date.now(),
-                size: null,
-                contractSignature: null
+        this.shards = {
+            map: null,
+            save: async () => {
+                await this.storage.put('shards', JSON.stringify([...this.shards.map]));
+            },
+            load: async () => {
+                const shards = await this.storage.get('shards');
+                if (shards) {
+                    this.shards.map = new Map(JSON.parse(shards));
+                }
+                else {
+                    this.shards.map = new Map();
+                }
             }
         };
-        // add the size of partial record, size integer, detached signature, and key
-        let pureImmutableRecord = Object.assign({}, immutableRecord);
-        delete pureImmutableRecord.kind;
-        const size = Buffer.from(JSON.stringify(pureImmutableRecord)).byteLength;
-        const sizeOfSize = Buffer.from(size.toString()).byteLength;
-        immutableRecord.value.size = size + sizeOfSize + 96 + 32;
-        // sign with the contract private key
-        immutableRecord.value.contractSignature = await crypto.sign(immutableRecord.value, contract.privateKeyObject);
-        // hash the final value to get the key
-        immutableRecord.key = crypto.getHash(JSON.stringify(immutableRecord.value));
-        return immutableRecord;
+        this.shards.load();
     }
-    async readImmutableRecord(record, contract) {
+    // **********************
+    // Record CRUD Operations
+    // **********************
+    async createRecord(content, encrypted) {
+        // creates and returns a new record instance from a given value and the current contract
         const profile = this.wallet.getProfile();
-        // is valid record?
-        const recordTest = await this.isValidRecord(record, contract);
-        if (!recordTest.valid) {
-            throw new Error(recordTest.reason);
-        }
-        // is valid immutable record?
-        const immutableTest = this.isValidImmutableRecord(record);
-        if (!immutableTest.valid) {
-            throw new Error(immutableTest.reason);
-        }
-        if (record.value.symkey) {
-            record.value.symkey = await crypto.decryptAssymetric(record.value.symkey, profile.publicKey);
-            record.value.content = await crypto.decryptSymmetric(record.value.content, record.value.symkey);
-        }
-        record.value.content = this.decodeValue(record.value.content, record.value.encoding);
-        return record;
-    }
-    async createMutableRecord(value, contract, encrypted) {
-        const profile = this.wallet.getProfile();
-        const keys = await crypto.generateKeys('keys', 'keys@keys.com', 'passphrase');
-        const { encodedValue, encoding } = this.encodeValue(value);
-        let symkey, content = null;
-        if (encrypted) {
-            symkey = crypto.getRandom();
-            content = await crypto.encryptSymmetric(encodedValue, symkey);
-            symkey = await crypto.encryptAssymetric(symkey, keys.publicKeyArmored);
-        }
-        else {
-            content = encodedValue;
-        }
-        const contentHash = crypto.getHash(content);
-        const encryptedPrivateKey = await crypto.encryptAssymetric(keys.privateKeyArmored, profile.publicKey);
-        let contractId, contractPrivateKeyObject = null;
-        if (contract) {
-            // using an existing contract to create the record
-            contractId = contract.id;
-            contractPrivateKeyObject = contract.privateKeyObject;
-        }
-        else {
-            // creating a new public contract record and contract
-            contractId = crypto.getHash(keys.publicKeyArmored);
-            contractPrivateKeyObject = await crypto.getPrivateKeyObject(keys.privateKeyArmored, 'passphrase');
-        }
-        // init the record object
-        const mutableRecord = {
-            kind: 'mutable',
-            key: null,
-            value: {
-                version: 0,
-                encoding: encoding,
-                symkey: symkey,
-                publicKey: keys.publicKeyArmored,
-                privateKey: encryptedPrivateKey,
-                content: content,
-                owner: profile.id,
-                contract: contractId,
-                revision: 0,
-                timestamp: Date.now(),
-                size: null,
-                contentHash: contentHash,
-                recordSignature: null,
-                contractSignature: null
-            }
-        };
-        // add the size of partial record, size integer, detached signatures, and key
-        let pureMutableRecord = Object.assign({}, mutableRecord);
-        delete pureMutableRecord.kind;
-        const size = Buffer.from(JSON.stringify(pureMutableRecord)).byteLength;
-        const sizeOfSize = Buffer.from(size.toString()).byteLength;
-        mutableRecord.value.size = size + sizeOfSize + 96 + 96;
-        // sign the record with record key 
-        const privateKeyObject = crypto.getPrivateKeyObject(keys.privateKeyArmored, 'passphrase');
-        mutableRecord.value.recordSignature = await crypto.sign(mutableRecord.value, privateKeyObject);
-        // sign the record with contract key
-        mutableRecord.value.contractSignature = await crypto.sign(mutableRecord.value, contractPrivateKeyObject);
-        return mutableRecord;
-    }
-    async readMutableRecord(record, contract) {
-        const profile = this.wallet.getProfile();
-        // is valid record?
-        const recordTest = await this.isValidRecord(record, contract);
-        if (!recordTest.valid) {
-            throw new Error(recordTest.reason);
-        }
-        // is valid mutable record?
-        const mutableTest = await this.isValidMutableRecord(record);
-        if (!mutableTest.valid) {
-            throw new Error(mutableTest.reason);
-        }
-        record.value.privateKey = await crypto.decryptAssymetric(record.value.privateKey, profile.privateKeyObject);
-        const privateKeyObject = await crypto.getPrivateKeyObject(record.value.privateKey, 'passphrase');
-        if (record.value.symkey) {
-            record.value.symkey = await crypto.decryptAssymetric(record.value.symkey, privateKeyObject);
-            record.value.content = await crypto.decryptSymmetric(record.value.content, record.value.symkey);
-        }
-        record.value.content = this.decodeValue(record.value.content, record.value.encoding);
-        return record;
-    }
-    async updateMutableRecord(update, record) {
         const contract = this.wallet.getContract();
-        const profile = this.wallet.getProfile();
-        const { encodedValue, encoding } = this.encodeValue(update);
-        const privateKey = record.value.privateKey;
-        // if encrypted, encrypt value
-        if (record.value.symkey) {
-            record.value.content = await crypto.encryptSymmetric(encodedValue, record.value.symkey);
-            record.value.symkey = await crypto.encryptAssymetric(record.value.symkey, record.value.publicKey);
+        const record = new Record();
+        record.value.immutable = true;
+        record.value.version = 0;
+        record.value.owner = profile.id;
+        record.value.createdAt = Date.now();
+        record.value.contractKey = contract.id;
+        record.value.symkey = null;
+        record.value.size = null;
+        record.encodeContent(content);
+        if (encrypted) { // sym encrypt value and asym encrypt sym key
+            const symkey = crypto.getRandom();
+            record.value.content = await crypto.encryptSymmetric(record.value.content, symkey);
+            record.value.symkey = await crypto.encryptAssymetric(symkey, profile.publicKey);
         }
-        record.value.contentHash = crypto.getHash(record.value.content);
-        record.value.privateKey = await crypto.encryptAssymetric(record.value.privateKey, profile.publicKey);
-        record.value.encoding = encoding;
-        record.value.timestamp = Date.now();
-        record.value.revision += 1;
-        record.value.recordSignature = null;
-        record.value.contractSignature = null;
-        // add the size of partial record, size integer, detached signatures
-        const size = Buffer.from(JSON.stringify(record)).byteLength;
-        const sizeOfSize = Buffer.from(size.toString()).byteLength;
-        record.value.size = size + sizeOfSize + 96 + 96;
-        // sign the record with record key 
-        const privateKeyObject = crypto.getPrivateKeyObject(privateKey, 'passphrase');
-        record.value.recordSignature = await crypto.sign(record.value, privateKeyObject);
-        // sign the record with contract key
-        record.value.contractSignature = await crypto.sign(record.value, contract.privateKeyObject);
+        if (contract.ttl) { // mutable record, gen keys and add mutable values
+            record.value.immutable = false;
+            const keys = await crypto.generateKeys(MUTABLE_KEY_NAME, MUTABLE_KEY_EMAIL, MUTABLE_KEY_PASSPRHASE);
+            record.key = crypto.getHash(keys.publicKeyArmored);
+            record.value.publicKey = keys.publicKeyArmored;
+            record.value.privateKey = await crypto.encryptAssymetric(keys.privateKeyArmored, profile.publicKey);
+            record.value.contentHash = crypto.getHash(record.value.content);
+            record.value.revision = 0;
+            record.value.updatedAt = null;
+            record.value.recordSig = null;
+        }
+        record.value.size = record.getSize();
+        if (contract.ttl) { // if mutable, sign after getting size, add size of signature
+            record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject);
+            record.value.size += 96;
+        }
+        record.value.contractSig = await crypto.sign(record.value, contract.privateKeyObject);
+        if (!contract.ttl) { // if immutable, key is hash of content
+            record.key = crypto.getHash(JSON.stringify(record.value));
+        }
+        await this.storage.put(record.key, JSON.stringify(record.value));
         return record;
     }
-    async isValidRecord(record, contract) {
-        // timestamp is no more than 10 minutes in the future
-        if (record.value.timestamp > (Date.now() + 60000)) {
-            return {
-                valid: false,
-                reason: 'Invalid record timestamp, greater than 10 minutes ahead'
-            };
+    async getRecord(key) {
+        // loads and returns an existing record instance on disk from a given key (from short key)
+        const stringRecord = await this.storage.get(key);
+        const recordObject = {
+            key: key,
+            value: JSON.parse(stringRecord)
+        };
+        const record = new Record();
+        record.key = recordObject.key;
+        record.value = recordObject.value;
+        return record;
+    }
+    loadRecord(recordObject) {
+        // loads and returns an existing record instance from an encoded record received over the network
+        const record = new Record();
+        record.key = recordObject.key;
+        record.value = recordObject.value;
+        return record;
+    }
+    async saveRecord(record, contract, update, sizeDelta) {
+        // saves an encrypted, encoded record to disk locally, as a host
+        const shardId = this.getShardForKey(record.key, contract);
+        let shard = this.getShard(shardId);
+        if (!shard) {
+            shard = await this.createShard(shardId, contract.id);
         }
-        // is valid size (w/in 10 bytes for now)
-        let pureRecord = Object.assign({}, record);
-        delete pureRecord.kind;
-        const recordSize = Buffer.byteLength(JSON.stringify(pureRecord));
-        if (recordSize > record.value.size + 10 || recordSize < record.value.size - 10) {
-            return {
-                valid: false,
-                reason: 'Invalid record size'
-            };
+        if (update) {
+            shard.size += sizeDelta;
         }
-        if (contract) {
-            // is valid contract signature
-            const unsignedValue = Object.assign({}, record.value);
-            unsignedValue.contractSignature = null;
-            const validSignature = await crypto.isValidSignature(unsignedValue, record.value.contractSignature, contract.publicKey);
-            if (!validSignature) {
-                return {
-                    valid: false,
-                    reason: 'Invalid contract signature'
-                };
-            }
+        else {
+            shard.records.add(record.key);
+            shard.size += record.value.size;
         }
-        return {
+        this.shards.map.set(shardId, shard);
+        await this.shards.save();
+        await this.storage.put(record.key, JSON.stringify(record.value));
+    }
+    async revRecord(key, update) {
+        // loads an existing record instance from key, applies update, and returns instance, called by client
+        const profile = this.wallet.getProfile();
+        const contract = this.wallet.getContract();
+        const record = await this.getRecord(key);
+        await record.decrypt(profile.privateKeyObject);
+        record.encodeContent(update);
+        if (record.value.symkey) { // sym encrypt value and asym encrypt sym key
+            record.value.content = await crypto.encryptSymmetric(record.value.content, record.value.symkey);
+            record.value.symkey = await crypto.encryptAssymetric(record.value.symkey, profile.publicKey);
+        }
+        record.value.recordSig = null;
+        record.value.contractSig = null;
+        record.value.contentHash = crypto.getHash(record.value.content);
+        record.value.revision += 1;
+        record.value.updatedAt = Date.now();
+        record.value.size = record.getSize() + 96;
+        record.value.privateKey = await crypto.encryptAssymetric(record.value.privateKey, profile.publicKey);
+        record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject);
+        record.value.contractSig = await crypto.sign(record.value, contract.privateKeyObject);
+        await this.storage.put(record.key, JSON.stringify(record.value));
+        return record;
+    }
+    async delRecord(record, shardId) {
+        // deletes an existing record from a key, for a host
+        await this.storage.del(record.key);
+        await this.delRecordInShard(shardId, record);
+    }
+    parseRecordKey(key) {
+        const keys = key.split(':');
+        const keyObject = {
+            shardId: keys[0],
+            recordId: keys[1],
+            replicationFactor: Number(keys[2])
+        };
+        return keyObject;
+    }
+    // *********************************************
+    // record request validation methods (for hosts)
+    // *********************************************
+    isValidRequest(record, hosts) {
+        // is this a valid request message?
+        const test = {
             valid: true,
             reason: null
         };
-    }
-    isValidImmutableRecord(record) {
-        // is valid hash
-        const validHash = crypto.isValidHash(record.key, JSON.stringify(record.value));
-        if (!validHash) {
-            return {
-                valid: false,
-                reason: 'Immutable record hash does not match value'
-            };
+        // is the timestamp within 10 minutes?
+        if (!crypto.isDateWithinRange(record.value.createdAt, 60000)) {
+            test.reason = 'Invalid request, timestamp is not within 10 minutes';
+            return test;
         }
-        return {
+        // am I the valid host for shard?
+        const amValidHost = hosts.includes(this.wallet.profile.user.id);
+        if (!amValidHost) {
+            test.reason = 'Invalid contract request, sent to incorrect host';
+            return test;
+        }
+        test.valid = true;
+        return test;
+    }
+    isValidContractOp(record, contract, shardMap, sizeDelta) {
+        const test = {
             valid: true,
             reason: null
         };
-    }
-    async isValidMutableRecord(record) {
-        // does the encrypted content value match the hash?
-        const validHash = crypto.isValidHash(record.value.contentHash, JSON.stringify(record.value.content));
-        if (!validHash) {
-            return {
-                valid: false,
-                reason: 'Mutable record content hash does not match content value'
-            };
-        }
-        // does the record signature match the record public key
-        let unsignedValue = Object.assign({}, record.value);
-        unsignedValue.recordSignature = null;
-        unsignedValue.contractSignature = null;
-        const validSignature = await crypto.isValidSignature(unsignedValue, record.value.recordSignature, record.value.publicKey);
-        if (!validSignature) {
-            return {
-                valid: false,
-                reason: 'Invalid mutable record signature'
-            };
-        }
-        return {
-            valid: true,
-            reason: null
-        };
-    }
-    async isValidContractOperation(type, record, contract, sizeDelta) {
         // has a valid contract tx been gossiped?
         if (!contract) {
-            return {
-                valid: false,
-                reason: 'Invalid contract request, unknown contract'
-            };
+            test.reason = 'Invalid contract request, unknown contract';
+            return test;
         }
-        // is the contract active?
+        // is the contract active  
         if ((contract.createdAt + contract.ttl) < Date.now()) {
-            return {
-                valid: false,
-                reason: 'Invalid contract request, contract ttl has expired'
-            };
+            test.reason = 'Invalid contract request, contract ttl has expired';
+            return test;
+        }
+        // does the shard have space available
+        const shard = this.getShard(shardMap.id);
+        if (shard) {
+            if (sizeDelta) {
+                if (!(shard.size + sizeDelta <= exports.SHARD_SIZE)) {
+                    test.reason = 'Invalid contract request, this shard is out of space';
+                    return test;
+                }
+            }
+            else {
+                if (!(shard.size + record.value.size <= exports.SHARD_SIZE)) {
+                    test.reason = 'Invalid contract request, this shard is out of space';
+                    return test;
+                }
+            }
         }
         // does the  owner match the contract, or are they on the ACL, later ...
-        // am I the valid host for this contract?
-        const shardMap = this.computeShardAndHostsForKey(record.key, record.value.contract, contract.replicationFactor, contract.spaceReserved);
-        const amValidHost = shardMap.hosts.includes(this.wallet.profile.user.id);
-        if (!amValidHost) {
-            return {
-                valid: false,
-                reason: 'Invalid contract request, sent to incorrect host'
-            };
-        }
-        // does the assigned shard have space available?
-        const shard = await this.getShard(shardMap.id);
-        if (shard) {
-            if (type === 'put') {
-                if (!(shard.size + record.value.size <= exports.SHARD_SIZE)) {
-                    return {
-                        valid: false,
-                        reason: 'Invalid contract request, this shard is out of space'
-                    };
-                }
-            }
-            else if (type === 'rev') {
-                if (!(shard.size + sizeDelta <= exports.SHARD_SIZE)) {
-                    return {
-                        valid: false,
-                        reason: 'Invalid contract request, this shard is out of space'
-                    };
-                }
-            }
-        }
-        return {
+        test.valid = true;
+        return test;
+    }
+    isValidPutRequest(record, contract) {
+        // is this a valid put request message?
+        const test = {
             valid: true,
             reason: null
         };
+        const shardMap = this.getShardAndHostsForKey(record.key, contract);
+        // is the request valid
+        const isValidRequest = this.isValidRequest(record, shardMap.hosts);
+        if (!isValidRequest) {
+            return isValidRequest;
+        }
+        // is valid operation for contract?
+        const isValidContractOp = this.isValidContractOp(record, contract, shardMap.hosts);
+        if (!isValidContractOp) {
+            return isValidContractOp;
+        }
+        test.valid = true;
+        return test;
     }
-    isValidMutation(value, update) {
-        // version should be equal 
-        if (value.version !== update.version) {
-            return {
-                valid: false,
-                reason: 'Versions do not match on mutation'
-            };
-        }
-        // symkey should be equal 
-        if (value.symkey !== update.symkey) {
-            return {
-                valid: false,
-                reason: 'Symkeys do not match on mutation'
-            };
-        }
-        // owner should be equal 
-        if (value.owner !== update.owner) {
-            return {
-                valid: false,
-                reason: 'Owners do not match on mutation'
-            };
-        }
-        // timestamp must be in the future 
-        if (value.timestamp >= update.timestamp) {
-            return {
-                valid: false,
-                reason: 'Update timestamp cannot be older than original on mutation'
-            };
-        }
-        // contract should be the same 
-        if (value.contract !== update.contract) {
-            return {
-                valid: false,
-                reason: 'Contracts do not match on mutation'
-            };
-        }
-        // publickey will be the same
-        if (value.publicKey !== update.publicKey) {
-            return {
-                valid: false,
-                reason: 'Public keys do not match on mutation'
-            };
-        }
-        // private key will be the same
-        if (value.privateKey !== update.privateKey) {
-            return {
-                valid: false,
-                reason: 'Versions do not match on mutation'
-            };
-        }
-        // revision must be larger
-        if (value.revision >= update.revision) {
-            return {
-                valid: false,
-                reason: 'Revision must be larger on mutation'
-            };
-        }
-        // record signature must be different
-        if (value.recordSignature === update.recordSignature) {
-            return {
-                valid: false,
-                reason: 'Record signatures cannot match on mutation'
-            };
-        }
-        // contract signature must be different 
-        if (value.contractSignature !== update.contractSignature) {
-            return {
-                valid: false,
-                reason: 'Contract signatures cannot match on mutation'
-            };
-        }
-        return {
+    isValidGetRequest(record, contract, shardId) {
+        const test = {
             valid: true,
             reason: null
         };
+        const shardMap = this.getShardAndHostsForKey(record.key, contract);
+        // is this the right shard for request?
+        if (shardMap.id !== shardId) {
+            test.reason = 'Invalid get request, shard ids do not match';
+            return test;
+        }
+        // is the request valid
+        const isValidRequest = this.isValidRequest(record, shardMap.hosts);
+        if (!isValidRequest) {
+            return isValidRequest;
+        }
+        test.valid = true;
+        return test;
     }
-    async isValidPutRequest(record, contract) {
-        // is this request valid for the given contract
-        const validContractOp = await this.isValidContractOperation('put', record, contract);
-        if (!validContractOp) {
-            return validContractOp;
+    isValidRevRequest(oldRecord, newRecord, contract, shardId) {
+        const test = {
+            valid: true,
+            reason: null,
+            data: null
+        };
+        // validate the update
+        const isValidUpdate = oldRecord.isValidUpdate(oldRecord.value, newRecord.value);
+        if (!isValidUpdate) {
+            return isValidUpdate;
         }
-        // is the basic record encoding valid (size, contract signature, timestamp)
-        const validRecord = await this.isValidRecord(record, contract);
-        if (!validRecord) {
-            return validRecord;
+        const shardMap = this.getShardAndHostsForKey(newRecord.key, contract);
+        // is this the right shard for request?
+        if (shardMap.id !== shardId) {
+            test.reason = 'Invalid get request, shard ids do not match';
+            return test;
         }
-        // is the timestamp within 10 minutes?
-        if (crypto.isDateWithinRange(record.value.timestamp, 60000)) {
-            return {
-                valid: false,
-                reason: 'Invalid put request, timestamp is not within 10 minutes'
-            };
+        // is the request valid
+        const isValidRequest = this.isValidRequest(newRecord, shardMap.hosts);
+        if (!isValidRequest) {
+            return isValidRequest;
         }
-        let validType;
-        if (record.kind === 'mutable') {
-            validType = await this.isValidMutableRecord(record);
+        // is valid operation for contract?
+        const sizeDelta = oldRecord.getSize() - newRecord.getSize();
+        const isValidContractOp = this.isValidContractOp(newRecord, contract, shardMap.hosts, sizeDelta);
+        if (!isValidContractOp) {
+            return isValidContractOp;
         }
-        if (record.kind === 'immutable') {
-            validType = await this.isValidImmutableRecord(record);
-        }
-        if (!validType) {
-            return validType;
-        }
-        return {
+        test.valid = true;
+        test.data = sizeDelta;
+        return test;
+    }
+    async isValidDelRequest(proof, record, contract, shardId) {
+        const test = {
             valid: true,
             reason: null
         };
-    }
-    async isValidRevRequest(oldRecord, newRecord, contract) {
-        // is this a valid mutation?
-        const validMuatation = await this.isValidMutation(oldRecord.value, newRecord.value);
-        if (!validMuatation) {
-            return validMuatation;
+        const shardMap = this.getShardAndHostsForKey(record.key, contract);
+        // is this the right shard for request?
+        if (shardMap.id !== shardId) {
+            test.reason = 'Invalid del request, shard ids do not match';
+            return test;
         }
-        // measure the size delta
-        const sizeDelta = Buffer.from(JSON.stringify(newRecord)).byteLength - Buffer.from(JSON.stringify(oldRecord)).byteLength;
-        // is this request valid for the given contract
-        const validContractOp = await this.isValidContractOperation('rev', newRecord, contract, sizeDelta);
-        if (!validContractOp) {
-            return validContractOp;
+        if (record.value.immutable) {
+            test.reason = 'Invalid del request, cannot delete an immutable record';
+            return test;
         }
-        // is the basic record encoding valid (size, contract signature, timestamp)
-        const validRecord = await this.isValidRecord(newRecord, contract);
-        if (!validRecord) {
-            return validRecord;
+        // is the request valid
+        const isValidRequest = this.isValidRequest(record, shardMap.hosts);
+        if (!isValidRequest) {
+            return isValidRequest;
         }
-        // is the timestamp within 10 minutes?
-        if (crypto.isDateWithinRange(newRecord.value.timestamp, 60000)) {
-            return {
-                valid: false,
-                reason: 'Invalid rev request, timestamp is not within 10 minutes'
-            };
+        // has a valid contract tx been gossiped?
+        if (!contract) {
+            test.reason = 'Invalid contract request, unknown contract';
+            return test;
         }
-        if (newRecord.kind === 'mutable') {
-            const validType = await this.isValidMutableRecord(newRecord);
-            if (!validType) {
-                return validType;
-            }
+        // is the contract active  
+        if ((contract.createdAt + contract.ttl) < Date.now()) {
+            test.reason = 'Invalid contract request, contract ttl has expired';
+            return test;
         }
-        return {
-            valid: true,
-            reason: null
-        };
-    }
-    async isValidDelRequest(proof, record, contract) {
-        // does contract id matches record contract id?
-        if (proof.contract !== record.value.contract) {
-            return {
-                valid: false,
-                reason: 'Invalid del request, contract does not match record contract'
-            };
+        // does contract key matches record contract key?
+        if (proof.contractKey !== record.value.contractKey) {
+            test.reason = 'Invalid del request, contract does not match record contract';
+            return test;
         }
-        // does signature matches contract id?
+        // does signature matches contract key?
         const unsignedProof = Object.assign({}, proof);
         unsignedProof.signature = null;
         const validSignature = await crypto.isValidSignature(JSON.stringify(unsignedProof), proof.signature, contract.publicKey);
         if (!validSignature) {
-            return {
-                valid: false,
-                reason: 'Invalid del request, signature does not match record contract signature'
-            };
+            test.reason = 'Invalid del request, signature does not match record contract signature';
+            return test;
         }
-        // is it an immutable record?
-        if (record.kind === 'immutable') {
-            return {
-                valid: false,
-                reason: 'Invalid del request, cannot delete an immutable record'
-            };
-        }
-        // is the timestamp within 10 minutes?
-        if (crypto.isDateWithinRange(proof.timestamp, 60000)) {
-            return {
-                valid: false,
-                reason: 'Invalid del request, timestamp is not within 10 minutes'
-            };
-        }
-        return {
-            valid: true,
-            reason: null
-        };
+        test.valid = true;
+        return test;
     }
-    createProofOfReplication(record, nodeId) {
-        return crypto.getHash(JSON.stringify(record) + nodeId);
-    }
-    isValidProofOfReplicaiton(proof, record, nodeId) {
-        return proof === this.createProofOfReplication(record, nodeId);
-    }
-    async put(record) {
-        await this.storage.put(record.key, JSON.stringify(record.value));
-    }
-    async get(key) {
-        const stringValue = await this.storage.get(key);
-        return JSON.parse(stringValue);
-    }
-    async del(key) {
-        // later implement full delete by rewriting garbage to the same location in memory
-        await this.storage.del(key);
-    }
-    // how shards work
-    // when a host receives receives the first put request for a contract it will not know about the contract
-    // it will check the contract id against the ledger
-    // compute the shards, and see if it is closest for any shards from the tracker
-    async createShardIndex(contract) {
-        const count = contract.reserved / exports.SHARD_SIZE;
-        const shardIndex = {
-            contract: contract.id,
-            size: contract.size,
-            count: count,
-            shards: []
-        };
-        let hash = contract.id;
-        for (let i = 0; i < count; i++) {
-            hash = crypto.getHash(hash);
-            shardIndex.shards.push(hash);
-        }
-        return shardIndex;
-    }
-    async getOrCreateShard(shardId, contractId) {
-        const stringShard = await this.storage.get('shard');
-        let shard;
-        if (stringShard) {
-            shard = JSON.parse(stringShard);
-        }
-        else {
-            shard = await this.createShard(shardId, contractId);
-        }
-        return shard;
-    }
+    // *********************
+    // Shard CRUD operations
+    // *********************
     async createShard(shardId, contractId) {
+        // add a new shard to shardMap
         const shard = {
-            id: shardId,
             contract: contractId,
             size: 0,
-            records: []
+            records: new Set()
         };
-        const shards = JSON.parse(await this.storage.get('shards'));
-        shards.push(shard.id);
-        await this.storage.put('shards', JSON.stringify(shards));
+        this.shards.map.set(shardId, shard);
+        await this.shards.save();
+        return shard;
+    }
+    getShard(shardId) {
+        return this.shards.map.get(shardId);
+    }
+    async delShard(shardId) {
+        const shard = this.getShard(shardId);
+        this.shards.map.delete(shardId);
+        for (const record of shard.records) {
+            await this.storage.del(record);
+        }
+        await this.shards.save();
+    }
+    async putRecordInShard(shardId, record) {
+        // add a record to shard in shardMap
+        const shard = this.shards.map.get(shardId);
+        shard.size += record.value.size;
+        shard.records.add(record.key);
+        this.shards.map.set(shardId, shard);
+        await this.shards.save();
+    }
+    async revRecordInShard(shardId, sizeDelta) {
+        // update a record for shard in shardMap
+        const shard = this.shards.map.get(shardId);
+        shard.size += sizeDelta;
         await this.storage.put(shardId, JSON.stringify(shard));
         return shard;
     }
-    async getShard(shardId) {
-        const stringShard = await this.storage.get(shardId);
-        if (stringShard) {
-            return JSON.parse(stringShard);
-        }
-        else {
-            return null;
-        }
-    }
-    async getAllShards() {
-        return JSON.parse(await this.storage.get('shards'));
-    }
-    async addRecordToShard(shardId, record) {
-        const shard = await this.getShard(shardId);
-        shard.size += record.value.size;
-        shard.records.push(record.key);
-        await this.storage.put(shard.id, JSON.stringify(shard));
-        return shard;
-    }
-    async updateRecordInShard(shardId, sizeDelta) {
-        const shard = await this.getShard(shardId);
-        shard.size += sizeDelta;
-        await this.storage.put(shard.id, JSON.stringify(shard));
-        return shard;
-    }
-    async removeRecordFromShard(shardId, record) {
+    async delRecordInShard(shardId, record) {
         const shard = await this.getShard(shardId);
         shard.size -= record.value.size;
-        shard.records = shard.records.filter(r => r !== record.key);
-        await this.storage.put(shard.id, JSON.stringify(shard));
-        return shard;
+        shard.records.delete(shardId);
     }
-    async deleteShardAndRecords(shardId) {
-        const shard = await this.getShard(shardId);
-        shard.records.forEach(async (record) => {
-            await this.storage.del(record);
-        });
-        await this.storage.del(shardId);
-        let shards = JSON.parse(await this.storage.get('shards'));
-        shards = shards.filter(shard => shard !== shardId);
-        await this.storage.put('shards', JSON.stringify(shards));
-    }
-    async getAllRecordKeys() {
-        let keys = [];
-        const shards = await this.getAllShards();
-        for (const shardId of shards) {
-            const shard = await this.getShard(shardId);
-            keys.push(...shard.records);
-        }
-        return keys;
-    }
-    async getLengthOfAllRecords() {
-        const keys = await this.getAllRecordKeys();
-        return keys.length;
-    }
-    async deleteAllShardsAndRecords() {
-        const shards = await this.getAllShards();
-        shards.forEach(async (shardId) => {
-            await this.deleteShardAndRecords(shardId);
-        });
-    }
-    computeShards(contractId, contractSize) {
+    // **************************************
+    // Shard <-> Key <-> Host mapping methods
+    // **************************************
+    computeShardArray(contract) {
         // returns an array of shardIds for a contract
-        let hash = contractId;
+        let hash = contract.id;
         let shards = [];
-        const numberOfShards = contractSize / exports.SHARD_SIZE;
+        const numberOfShards = contract.spaceReserved / exports.SHARD_SIZE;
         if (numberOfShards % 1) {
             throw new Error('Incorrect contract size');
         }
@@ -748,6 +394,16 @@ class Database {
             shards.push(hash);
         }
         return shards;
+    }
+    computeShardForKey(key, spaceReserved) {
+        // returns the correct shard number for a record given a key and a contract size
+        // uses jump consistent hashing
+        const hash = crypto.getHash64(key);
+        const numberOfShards = spaceReserved / exports.SHARD_SIZE;
+        if (numberOfShards % 1) {
+            throw new Error('Incorrect contract size');
+        }
+        return jump_consistent_hash_1.jumpConsistentHash(hash, numberOfShards);
     }
     getDestinations() {
         return this.tracker
@@ -769,36 +425,300 @@ class Database {
             };
         });
     }
-    isValidShardForKey(key, shardId, contractId) {
-        // compute the shards 
-    }
-    computeShardForKey(key, contractSize) {
-        // returns the correct shard number for a record given a key and a contract size
-        // uses jump consistent hashing
-        const hash = crypto.getHash64(key);
-        const numberOfShards = contractSize / exports.SHARD_SIZE;
-        if (numberOfShards % 1) {
-            throw new Error('Incorrect contract size');
-        }
-        return jump_consistent_hash_1.jumpConsistentHash(hash, numberOfShards);
-    }
-    computeShardAndHostsForKey(key, contractId, contractSize, replicationFactor) {
+    getShardAndHostsForKey(key, contract) {
         // return the correct hosts for a given key
-        const shards = this.computeShards(contractId, contractSize);
-        const shardIndex = this.computeShardForKey(key, contractSize);
+        const shards = this.computeShardArray(contract);
+        const shardIndex = this.computeShardForKey(key, contract.spaceReserved);
         const shard = shards[shardIndex];
-        const shardMaps = this.computeHostsforShards(shards, replicationFactor);
+        const shardMaps = this.computeHostsforShards(shards, contract.replicationFactor);
         return shardMaps.filter(shardMap => shardMap.id === shard)[0];
     }
-    parseKey(key) {
-        const keys = key.split(':');
-        const keyObject = {
-            shardId: keys[0],
-            recordId: keys[1],
-            replicationFactor: Number(keys[2])
-        };
-        return keyObject;
+    getShardForKey(key, contract) {
+        const shards = this.computeShardArray(contract);
+        const shardIndex = this.computeShardForKey(key, contract.spaceReserved);
+        return shards[shardIndex];
+    }
+    getHosts(key, contract) {
+        return this.getShardAndHostsForKey(key, contract).hosts;
     }
 }
-exports.default = Database;
+exports.DataBase = DataBase;
+class Record {
+    constructor() {
+        this.key = null;
+        this.value = null;
+    }
+    encodeContent(content) {
+        // determine content and encoding and encode content as string
+        switch (typeof content) {
+            case ('undefined'):
+                throw new Error('Cannot create a record from content: undefined');
+            case ('string'):
+                this.value.encoding = 'string';
+                this.value.content = content;
+                break;
+            case ('number'):
+                this.value.encoding = 'string';
+                this.value.content = content.toString();
+                break;
+            case ('boolean'):
+                this.value.encoding = 'string';
+                this.value.content = content.toString();
+                break;
+            case ('object'):
+                if (!content) {
+                    this.value.encoding = 'null';
+                    this.value.content = JSON.stringify(content);
+                }
+                else if (Array.isArray(content)) {
+                    this.value.encoding = 'array';
+                    this.value.content = JSON.stringify(content);
+                }
+                else if (Buffer.isBuffer(content)) {
+                    this.value.encoding = 'buffer';
+                    this.value.content = content.toString();
+                }
+                else {
+                    this.value.encoding = 'object';
+                    this.value.content = JSON.stringify(content);
+                }
+                break;
+            default:
+                throw new Error('Cannot create a record from content: unknown type');
+        }
+    }
+    decodeContent() {
+        // convert string content back to original type based on encoding
+        switch (this.value.encoding) {
+            case 'null':
+                this.value.content = null;
+                break;
+            case 'string':
+                // no change
+                break;
+            case 'number':
+                this.value.content = Number(this.value.content);
+                break;
+            case 'boolean':
+                if (this.value.content === 'true')
+                    this.value.content = true;
+                else
+                    this.value.content = false;
+                break;
+            case 'array':
+                this.value.content = JSON.parse(this.value.content);
+                break;
+            case 'object':
+                this.value.content = JSON.parse(this.value.content);
+                break;
+            case 'buffer':
+                this.value.content = Buffer.from(this.value.content);
+                break;
+            default:
+                throw new Error('Unknown encoding, cannot decode');
+        }
+    }
+    update(value) {
+        // mutates a record if it is mutable
+        // called by db for client (involves signing and encrypting)
+        // if it involves db ops (with shards) it should be called in db 
+    }
+    createPoR(nodeId) {
+        // creates a mock Proof of Replication for a record from this node
+        // proof should actually be created when the record is stored by a host, then fetched on get (not created)
+        return crypto.getHash(JSON.stringify(this.getRecord()) + nodeId);
+    }
+    isValidPoR(nodeId, proof) {
+        // validates a Proof of Replicaiton from another node
+        return proof === this.createPoR(nodeId);
+    }
+    createPoD(nodeId) {
+        // creates a mock Proof of Deletion for a record from this node
+        return crypto.getHash(JSON.stringify(this) + nodeId);
+    }
+    isValidPoD(nodeId, proof) {
+        // validates a Proof of Deletion from another node
+        return proof === this.createPoD(nodeId);
+    }
+    async isValid(sender) {
+        // validates the record schema and signatures
+        const test = {
+            valid: false,
+            reason: null
+        };
+        // *****************
+        // Shared Properties
+        // ***************** 
+        // has valid encoding 
+        if (!VALID_ENCODING.includes(this.value.encoding)) {
+            test.reason = 'Invalid encoding format';
+            return test;
+        }
+        // has valid version
+        if (this.value.version < 0) {
+            test.reason = 'Invalid schema version';
+            return test;
+        }
+        if (sender) {
+            if (sender !== this.value.owner)
+                test.reason = 'Invalid, sender is not owner';
+            return test;
+        }
+        // timestamp is no more than 10 minutes in the future
+        if (this.value.createdAt > (Date.now() + 60000)) {
+            test.reason = 'Invalid record timestamp, greater than 10 minutes ahead';
+            return test;
+        }
+        // is valid size (w/in 10 bytes for now)
+        const recordSize = Buffer.byteLength(JSON.stringify(this.getRecord));
+        if (recordSize > this.value.size + 10 || recordSize < this.value.size - 10) {
+            test.reason = 'Invalid record size';
+            return test;
+        }
+        // is valid contract signature
+        const unsignedValue = Object.assign({}, this.value);
+        unsignedValue.contractSig = null;
+        const validSignature = await crypto.isValidSignature(unsignedValue, this.value.contractSig, this.value.contractKey);
+        if (!validSignature) {
+            test.reason = 'Invalid contract signature';
+            return test;
+        }
+        // ********************
+        // Immutable Properties
+        // ********************
+        if (this.value.immutable) {
+            // is valid hash
+            const validHash = crypto.isValidHash(this.key, JSON.stringify(this.value));
+            if (!validHash) {
+                test.reason = 'Immutable record hash does not match value';
+                return test;
+            }
+        }
+        // ******************
+        // Mutable Properties
+        // ******************
+        if (!this.value.immutable) {
+            // does the encrypted content value match the hash?
+            const validHash = crypto.isValidHash(this.value.contentHash, JSON.stringify(this.value.content));
+            if (!validHash) {
+                test.reason = 'Mutable record content hash does not match content value';
+                return test;
+            }
+            // does the record signature match the record public key
+            let unsignedValue = Object.assign({}, this.value);
+            unsignedValue.recordSig = null;
+            unsignedValue.contractSig = null;
+            const validSignature = await crypto.isValidSignature(unsignedValue, this.value.recordSig, this.value.publicKey);
+            if (!validSignature) {
+                test.reason = 'Invalid mutable record signature';
+                return test;
+            }
+        }
+        test.valid = true;
+        return test;
+    }
+    isValidUpdate(value, update) {
+        const test = {
+            valid: true,
+            reason: null
+        };
+        // version should be equal 
+        if (value.version !== update.version) {
+            test.reason = 'Versions do not match on mutation';
+            return test;
+        }
+        // symkey should be equal 
+        if (value.symkey !== update.symkey) {
+            test.reason = 'Symkeys do not match on mutation';
+            return test;
+        }
+        // owner should be equal 
+        if (value.owner !== update.owner) {
+            test.reason = 'Owners do not match on mutation';
+            return test;
+        }
+        // new timestamp must be in the future 
+        if (value.updatedAt >= update.updatedAt) {
+            test.reason = 'Update timestamp cannot be older than original on mutation';
+            return test;
+        }
+        // contract public keys should be the same 
+        if (value.contractKey !== update.contractKey) {
+            test.reason = 'Contract public keys do not match on mutation';
+            return test;
+        }
+        // record publickey will be the same
+        if (value.publicKey !== update.publicKey) {
+            test.reason = 'Record public keys do not match on mutation';
+            return test;
+        }
+        // record private key will be the same
+        if (value.privateKey !== update.privateKey) {
+            test.reason = 'Record private keys do not match on mutation';
+            return test;
+        }
+        // revision must be larger
+        if (value.revision >= update.revision) {
+            test.reason = 'Revision must be larger on mutation';
+            return test;
+        }
+        // record signature must be different
+        if (value.recordSig === update.recordSig) {
+            test.reason = 'Record signatures cannot match on mutation';
+            return test;
+        }
+        // contract signature must be different 
+        if (value.contractSig !== update.contractSig) {
+            test.reason = 'Contract signatures cannot match on mutation';
+            return test;
+        }
+        test.valid = true;
+        return test;
+    }
+    async decrypt(privateKeyObject) {
+        if (this.value.symkey) { // is an encrypted record
+            // asym decrypt the symkey with node private key
+            this.value.symkey = await crypto.decryptAssymetric(this.value.symkey, privateKeyObject);
+            // sym decrypt the content with symkey 
+            this.value.content = await crypto.decryptSymmetric(this.value.content, this.value.symkey);
+        }
+        if (!this.value.immutable) {
+            // asym decyprt the record private key with node private key
+            this.value.privateKey = await crypto.decryptAssymetric(this.value.privateKey, privateKeyObject);
+        }
+    }
+    getSize() {
+        const record = {
+            key: crypto.getHash('abc'),
+            value: this.value
+        };
+        const size = Buffer.from(JSON.stringify(record)).byteLength;
+        const sizeOfSize = Buffer.from(size.toString()).byteLength;
+        return (size + sizeOfSize + 96);
+    }
+    getRecord() {
+        // returns the encrypted, encoded record object
+        return {
+            key: this.key,
+            value: this.value
+        };
+    }
+    async getContent(shardId, replicationFactor, privateKeyObject) {
+        // returns the key and decrypted, decoded content
+        await this.decrypt(privateKeyObject);
+        this.decodeContent();
+        return {
+            key: `${this.key}:${shardId}:${replicationFactor}`,
+            value: this.value.content
+        };
+    }
+    // later
+    serialize() {
+        // later, convert json object so streamlined binary based on encoding version
+    }
+    deserialize() {
+        // later, conver binary data back to json object based on encoding version
+    }
+}
+exports.Record = Record;
 //# sourceMappingURL=database.js.map
