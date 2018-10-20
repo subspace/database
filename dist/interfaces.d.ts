@@ -1,45 +1,65 @@
-export interface IValue {
-    version: number;
-    encoding: string;
-    symkey: string;
-    content: string;
-    owner: string;
-    timestamp: number;
-    size: number;
+export interface IDataBase {
+    shards: IShards;
+}
+export interface IShards {
+    map: Map<string, IShard>;
+    save(): void;
+    load(): void;
+}
+export interface IShard {
     contract: string;
-}
-export interface IImmutableValue extends IValue {
-}
-export interface IMutableValue extends IValue {
-    pubkey: string;
-    privkey: string;
-    contentHash: string;
-    revision: number;
-    signature: string;
+    size: number;
+    records: Set<string>;
 }
 export interface IRecord {
     key: string;
     value: IValue;
+    encodeContent(content: any): void;
+    decodeContent(): void;
+    update(value: any): void;
+    createPoR(nodeId: string): string;
+    isValidPoR(nodeId: string, proof: string): boolean;
+    createPoD(nodeId: string): string;
+    isValidPoD(nodeId: string, proof: string): boolean;
+    isValid(sender: string): Promise<any>;
+    isValidUpdate(value: IValue, update: IValue): any;
+    decrypt(privateKeyObject: any): Promise<void>;
+    getSize(): number;
+    getRecord(): any;
+    getContent(shardId: string, replicationFactor: number, privateKeyObject: any): Promise<any>;
 }
-export interface IImmutableRecord extends IRecord {
-    value: IImmutableValue;
-}
-export interface IMutableRecord extends IRecord {
-    value: IMutableValue;
-}
-export interface ShardIndex {
-    contract: string;
+export interface IValue {
+    immutable: boolean;
+    version: number;
+    encoding: string;
+    symkey: string;
+    content: any;
+    owner: string;
+    createdAt: number;
     size: number;
-    count: number;
-    shards: string[];
+    contractKey: string;
+    contractSig: string;
+    publicKey?: string;
+    privateKey?: string;
+    contentHash?: string;
+    revision?: number;
+    updatedAt?: number;
+    recordSig?: string;
 }
-export interface Shard {
+export interface IContract {
     id: string;
-    contract: string;
-    size: number;
-    records: string[];
-}
-export interface ShardMap {
-    id: string;
-    hosts: string[];
+    owner: string;
+    name: string;
+    email: string;
+    passphrase: string;
+    ttl: number;
+    replicationFactor: number;
+    spaceReserved: number;
+    spaceUsed: number;
+    createdAt: number;
+    updatedAt: number;
+    recordIndex: Set<string>;
+    publicKey: string;
+    privateKey: string;
+    privateKeyObject: any;
 }
