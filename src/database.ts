@@ -1,4 +1,4 @@
-import {IDataBase, IRecord, IValue, IContract, IShards} from './interfaces'
+import {IDataBase, IRecord, IValue, IContract, IShards, IRequest} from './interfaces'
 import * as crypto from '@subspace/crypto'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
@@ -10,8 +10,16 @@ const VALID_ENCODING = ['null', 'string', 'number', 'boolean', 'array', 'object'
 const MUTABLE_KEY_NAME = 'key'
 const MUTABLE_KEY_EMAIL = 'key@key.com'
 const MUTABLE_KEY_PASSPRHASE = 'lockandkey'
-export const SHARD_SIZE = 100000000
-export const PLEDGE_SIZE = SHARD_SIZE * 100
+
+/**
+ * Size of one shard in bytes (100M)
+ */
+export const SHARD_SIZE = 100000000;
+/**
+ * Pledge size in bytes (100 shards or 10G)
+ */
+export const PLEDGE_SIZE = SHARD_SIZE * 100;
+
 
 export class DataBase implements IDataBase {
   
@@ -51,9 +59,8 @@ export class DataBase implements IDataBase {
 
     record.value.immutable = true
     record.value.version = 0
-    record.value.owner = profile.id
+    record.value.ownerKey = profile.publicKey
     record.value.createdAt = Date.now()
-    record.value.contractKey = contract.id
     record.value.symkey = null
     record.value.size = null
 
@@ -84,7 +91,7 @@ export class DataBase implements IDataBase {
       record.value.size += 96
     }
 
-    record.value.contractSig = await crypto.sign(record.value, contract.privateKeyObject)
+    record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
 
     if (!contract.ttl) {  // if immutable, key is hash of content
       record.key = crypto.getHash(JSON.stringify(record.value))
@@ -150,14 +157,14 @@ export class DataBase implements IDataBase {
     } 
 
     record.value.recordSig = null
-    record.value.contractSig = null
+    record.value.ownerSig = null
     record.value.contentHash = crypto.getHash(record.value.content)
     record.value.revision += 1
     record.value.updatedAt = Date.now()
     record.value.size = record.getSize() + 96 
     record.value.privateKey = await crypto.encryptAssymetric(record.value.privateKey, profile.publicKey)
     record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject)
-    record.value.contractSig = await crypto.sign(record.value, contract.privateKeyObject)
+    record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
     await this.storage.put(record.key, JSON.stringify(record.value))
     return record
   }
@@ -207,7 +214,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public isValidContractOp(record: IRecord, contract: IContract, shardMap: any, sizeDelta?: number) {
+  public async isValidContractOp(record: IRecord, contract: IContract, shardMap: any, request: IRequest, sizeDelta?: number) {
 
     const test = {
       valid: true,
@@ -223,6 +230,22 @@ export class DataBase implements IDataBase {
     // is the contract active  
     if ((contract.createdAt + contract.ttl) < Date.now()) {
       test.reason = 'Invalid contract request, contract ttl has expired'
+      return test
+    }
+
+    // does record owner match contract owner 
+    // add ACL later
+    if (crypto.getHash(record.value.ownerKey) !== contract.owner) {
+      test.reason = 'Invalid del request, contract does not match record contract'
+      return test
+    }
+
+    // is valid contract signature
+    const unsignedValue = {...request}
+    unsignedValue.signature = null
+    const validSignature = await crypto.isValidSignature(unsignedValue, request.signature, request.contractKey)
+    if (!validSignature) {
+      test.reason = 'Invalid contract request, incorrect signature'
       return test
     }
 
@@ -242,13 +265,11 @@ export class DataBase implements IDataBase {
       }
     }
 
-    // does the  owner match the contract, or are they on the ACL, later ...
-
     test.valid = true
     return test
   }
 
-  public isValidPutRequest(record: IRecord, contract: IContract) {
+  public async isValidPutRequest(record: IRecord, contract: IContract, request: IRequest) {
     // is this a valid put request message?
 
     const test = {
@@ -265,7 +286,7 @@ export class DataBase implements IDataBase {
     }
 
     // is valid operation for contract?
-    const isValidContractOp = this.isValidContractOp(record, contract, shardMap.hosts)
+    const isValidContractOp = await this.isValidContractOp(record, contract, shardMap.hosts, request)
     if (!isValidContractOp) {
       return isValidContractOp
     }
@@ -298,7 +319,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public isValidRevRequest(oldRecord: IRecord, newRecord: IRecord, contract: IContract, shardId: string) {
+  public async isValidRevRequest(oldRecord: IRecord, newRecord: IRecord, contract: IContract, shardId: string, request: IRequest) {
     const test = {
       valid: true,
       reason: <string> null,
@@ -326,7 +347,7 @@ export class DataBase implements IDataBase {
 
     // is valid operation for contract?
     const sizeDelta = oldRecord.getSize() - newRecord.getSize()
-    const isValidContractOp = this.isValidContractOp(newRecord, contract, shardMap.hosts, sizeDelta)
+    const isValidContractOp = await this.isValidContractOp(newRecord, contract, shardMap.hosts, request, sizeDelta)
     if (!isValidContractOp) {
       return isValidContractOp
     }
@@ -336,7 +357,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public async isValidDelRequest(proof: any, record: IRecord, contract: IContract, shardId: string) {
+  public async isValidDelRequest(proof: any, record: IRecord, contract: IContract, shardId: string, request: IRequest) {
     const test = {
       valid: true,
       reason: <string> null
@@ -361,31 +382,10 @@ export class DataBase implements IDataBase {
       return isValidRequest
     }
 
-    // has a valid contract tx been gossiped?
-    if (!contract) {
-      test.reason = 'Invalid contract request, unknown contract'
-      return test
-    }
-
-    // is the contract active  
-    if ((contract.createdAt + contract.ttl) < Date.now()) {
-      test.reason = 'Invalid contract request, contract ttl has expired'
-      return test
-    }
-
-    // does contract key matches record contract key?
-    if (proof.contractKey !== record.value.contractKey) {
-      test.reason = 'Invalid del request, contract does not match record contract'
-      return test
-    }
-
-    // does signature matches contract key?
-    const unsignedProof = { ...proof }
-    unsignedProof.signature = null
-    const validSignature = await crypto.isValidSignature(JSON.stringify(unsignedProof), proof.signature, contract.publicKey)
-    if (!validSignature) {
-      test.reason = 'Invalid del request, signature does not match record contract signature'
-      return test
+    // is valid operation for contract?
+    const isValidContractOp = await this.isValidContractOp(record, contract, shardMap.hosts, request)
+    if (!isValidContractOp) {
+      return isValidContractOp
     }
 
     test.valid = true
@@ -597,6 +597,8 @@ export class Record implements IRecord {
     // if it involves db ops (with shards) it should be called in db 
   }
 
+  // move to crypto module
+
   public createPoR(nodeId: string) {
     // creates a mock Proof of Replication for a record from this node
     // proof should actually be created when the record is stored by a host, then fetched on get (not created)
@@ -644,7 +646,7 @@ export class Record implements IRecord {
     }
 
     if (sender) {
-      if (sender !== this.value.owner)
+      if (sender !== crypto.getHash(this.value.ownerKey))
         test.reason = 'Invalid, sender is not owner'
         return test
     }
@@ -662,13 +664,13 @@ export class Record implements IRecord {
       return test
     }
 
-    // is valid contract signature
+    // is valid owner signature
     const unsignedValue = {...this.value}
-    unsignedValue.contractSig = null
-    const validSignature = await crypto.isValidSignature(unsignedValue, this.value.contractSig, this.value.contractKey)
+    unsignedValue.ownerSig = null
+    const validSignature = await crypto.isValidSignature(unsignedValue, this.value.ownerSig, this.value.ownerKey)
 
     if (!validSignature) {
-      test.reason = 'Invalid contract signature'
+      test.reason = 'Invalid owner signature'
       return test
     }
 
@@ -701,7 +703,7 @@ export class Record implements IRecord {
       // does the record signature match the record public key
       let unsignedValue = { ...this.value }
       unsignedValue.recordSig = null
-      unsignedValue.contractSig = null
+      unsignedValue.ownerSig = null
       const validSignature = await crypto.isValidSignature(unsignedValue, this.value.recordSig, this.value.publicKey)
 
       if (!validSignature) {
@@ -733,20 +735,14 @@ export class Record implements IRecord {
       return test 
     }
 
-    // owner should be equal 
-    if (value.owner !== update.owner) {
-      test.reason = 'Owners do not match on mutation'
-      return test 
-    }
-
     // new timestamp must be in the future 
     if (value.updatedAt >= update.updatedAt) {
       test.reason = 'Update timestamp cannot be older than original on mutation'
       return test 
     }
 
-    // contract public keys should be the same 
-    if (value.contractKey !== update.contractKey) {
+    // owner public keys should be the same 
+    if (value.ownerKey !== update.ownerKey) {
       test.reason = 'Contract public keys do not match on mutation'
       return test 
     }
@@ -776,7 +772,7 @@ export class Record implements IRecord {
     } 
 
     // contract signature must be different 
-    if (value.contractSig !== update.contractSig) {
+    if (value.ownerSig !== update.ownerSig) {
       test.reason = 'Contract signatures cannot match on mutation'
       return test 
     } 

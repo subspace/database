@@ -34,11 +34,10 @@ export interface IValue {
     encoding: string;
     symkey: string;
     content: any;
-    owner: string;
     createdAt: number;
     size: number;
-    contractKey: string;
-    contractSig: string;
+    ownerKey: string;
+    ownerSig: string;
     publicKey?: string;
     privateKey?: string;
     contentHash?: string;
@@ -62,4 +61,10 @@ export interface IContract {
     publicKey: string;
     privateKey: string;
     privateKeyObject: any;
+}
+export interface IRequest {
+    record: IRecord;
+    contractKey: string;
+    timestamp: number;
+    signature: string;
 }
