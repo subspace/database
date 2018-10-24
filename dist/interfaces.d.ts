@@ -35,7 +35,6 @@ export interface IValue {
     symkey: string;
     content: any;
     createdAt: number;
-    size: number;
     ownerKey: string;
     ownerSig: string;
     publicKey?: string;

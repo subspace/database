@@ -2,6 +2,7 @@ import {IDataBase, IRecord, IValue, IContract, IShards, IRequest} from './interf
 import * as crypto from '@subspace/crypto'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
+export {IRecord, IValue}
 
 // ToDo
   // later add patch method for unecrypted data
@@ -62,7 +63,6 @@ export class DataBase implements IDataBase {
     record.value.ownerKey = profile.publicKey
     record.value.createdAt = Date.now()
     record.value.symkey = null
-    record.value.size = null
 
     record.encodeContent(content)
     
@@ -84,11 +84,8 @@ export class DataBase implements IDataBase {
       record.value.recordSig = null
     } 
 
-    record.value.size = record.getSize()
-
     if (contract.ttl) { // if mutable, sign after getting size, add size of signature
       record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject)
-      record.value.size += 96
     }
 
     record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
@@ -135,7 +132,7 @@ export class DataBase implements IDataBase {
       shard.size += sizeDelta
     } else {
       shard.records.add(record.key)
-      shard.size += record.value.size
+      shard.size += record.getSize()
     }
     
     this.shards.map.set(shardId, shard)
@@ -161,7 +158,6 @@ export class DataBase implements IDataBase {
     record.value.contentHash = crypto.getHash(record.value.content)
     record.value.revision += 1
     record.value.updatedAt = Date.now()
-    record.value.size = record.getSize() + 96 
     record.value.privateKey = await crypto.encryptAssymetric(record.value.privateKey, profile.publicKey)
     record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject)
     record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
@@ -258,7 +254,7 @@ export class DataBase implements IDataBase {
           return test
         }
       } else {
-        if (! (shard.size + record.value.size <= SHARD_SIZE)) {
+        if (! (shard.size + record.getSize() <= SHARD_SIZE)) {
           test.reason = 'Invalid contract request, this shard is out of space'
           return test
         }
@@ -424,7 +420,7 @@ export class DataBase implements IDataBase {
   public async putRecordInShard(shardId: string, record: IRecord) {
     // add a record to shard in shardMap
     const shard = this.shards.map.get(shardId)
-    shard.size += record.value.size
+    shard.size += record.getSize()
     shard.records.add(record.key)
     this.shards.map.set(shardId, shard)
     await this.shards.save()
@@ -440,7 +436,7 @@ export class DataBase implements IDataBase {
 
   public async delRecordInShard(shardId: string, record: IRecord) {
     const shard = await this.getShard(shardId)
-    shard.size -= record.value.size
+    shard.size -= record.getSize()
     shard.records.delete(shardId)
   }
 
@@ -657,13 +653,6 @@ export class Record implements IRecord {
         return test
     }
 
-    // is valid size (w/in 10 bytes for now)
-    const recordSize = Buffer.byteLength(JSON.stringify(this.getRecord))
-    if (recordSize > this.value.size + 10 || recordSize < this.value.size - 10) {
-      test.reason = 'Invalid record size'
-      return test
-    }
-
     // is valid owner signature
     const unsignedValue = {...this.value}
     unsignedValue.ownerSig = null
@@ -797,12 +786,10 @@ export class Record implements IRecord {
 
   public getSize() {
     const record = {
-      key: crypto.getHash('abc'),
+      key: this.key,
       value: this.value
     }
-    const size = Buffer.from(JSON.stringify(record)).byteLength
-    const sizeOfSize = Buffer.from(size.toString()).byteLength
-    return (size + sizeOfSize + 96)
+    return Buffer.from(JSON.stringify(record)).byteLength
   }
 
   public getRecord() {

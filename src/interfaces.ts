@@ -1,5 +1,3 @@
-import { decrypt } from "openpgp";
-
 export interface IDataBase {
   shards: IShards
 }
@@ -44,7 +42,6 @@ export interface IValue {
   symkey: string        // asym encrypted symmetric key
   content: any           // the data being stored, encrypted by default
   createdAt: number     // unix timestamp when created 
-  size: number          // size of the full record
   ownerKey: string      // full public key of record creator
   ownerSig: string      // singature of record creator
   
