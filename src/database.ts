@@ -357,7 +357,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public async isValidDelRequest(proof: any, record: IRecord, contract: IContract, shardId: string, request: IRequest) {
+  public async isValidDelRequest(record: IRecord, contract: IContract, shardId: string, request: IRequest) {
     const test = {
       valid: true,
       reason: <string> null

@@ -42,7 +42,7 @@ export declare class DataBase implements IDataBase {
         reason: string;
     };
     isValidRevRequest(oldRecord: IRecord, newRecord: IRecord, contract: IContract, shardId: string, request: IRequest): Promise<any>;
-    isValidDelRequest(proof: any, record: IRecord, contract: IContract, shardId: string, request: IRequest): Promise<{
+    isValidDelRequest(record: IRecord, contract: IContract, shardId: string, request: IRequest): Promise<{
         valid: boolean;
         reason: string;
     }>;

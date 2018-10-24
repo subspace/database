@@ -305,7 +305,7 @@ class DataBase {
         test.data = sizeDelta;
         return test;
     }
-    async isValidDelRequest(proof, record, contract, shardId, request) {
+    async isValidDelRequest(record, contract, shardId, request) {
         const test = {
             valid: true,
             reason: null
