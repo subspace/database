@@ -77,7 +77,6 @@ export declare class Record {
     constructor(key?: string, value?: IValue);
     encodeContent(content: any): void;
     decodeContent(): void;
-    update(value: any): void;
     createPoR(nodeId: string): string;
     isValidPoR(nodeId: string, proof: string): boolean;
     createPoD(nodeId: string): string;

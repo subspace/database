@@ -189,7 +189,7 @@ export class DataBase implements IDataBase {
     // is this a valid request message?
 
     const test = {
-      valid: true,
+      valid: false,
       reason: <string> null
     }
 
@@ -213,7 +213,7 @@ export class DataBase implements IDataBase {
   public async isValidContractOp(record: IRecord, contract: IContract, shardMap: any, request: IRequest, sizeDelta?: number) {
 
     const test = {
-      valid: true,
+      valid: false,
       reason: <string> null
     }
 
@@ -269,7 +269,7 @@ export class DataBase implements IDataBase {
     // is this a valid put request message?
 
     const test = {
-      valid: true,
+      valid: false,
       reason: <string> null
     }
 
@@ -283,7 +283,7 @@ export class DataBase implements IDataBase {
 
     // is valid operation for contract?
     const isValidContractOp = await this.isValidContractOp(record, contract, shardMap.hosts, request)
-    if (!isValidContractOp) {
+    if (!isValidContractOp.valid) {
       return isValidContractOp
     }
 
@@ -293,7 +293,7 @@ export class DataBase implements IDataBase {
 
   public isValidGetRequest(record: IRecord, contract: IContract, shardId: string) {
     const test = {
-      valid: true,
+      valid: false,
       reason: <string> null
     }
 
@@ -317,7 +317,7 @@ export class DataBase implements IDataBase {
 
   public async isValidRevRequest(oldRecord: IRecord, newRecord: IRecord, contract: IContract, shardId: string, request: IRequest) {
     const test = {
-      valid: true,
+      valid: false,
       reason: <string> null,
       data: <number> null
     }
@@ -344,7 +344,7 @@ export class DataBase implements IDataBase {
     // is valid operation for contract?
     const sizeDelta = oldRecord.getSize() - newRecord.getSize()
     const isValidContractOp = await this.isValidContractOp(newRecord, contract, shardMap.hosts, request, sizeDelta)
-    if (!isValidContractOp) {
+    if (!isValidContractOp.valid) {
       return isValidContractOp
     }
 
@@ -355,7 +355,7 @@ export class DataBase implements IDataBase {
 
   public async isValidDelRequest(record: IRecord, contract: IContract, shardId: string, request: IRequest) {
     const test = {
-      valid: true,
+      valid: false,
       reason: <string> null
     }
 
@@ -380,7 +380,7 @@ export class DataBase implements IDataBase {
 
     // is valid operation for contract?
     const isValidContractOp = await this.isValidContractOp(record, contract, shardMap.hosts, request)
-    if (!isValidContractOp) {
+    if (!isValidContractOp.valid) {
       return isValidContractOp
     }
 
@@ -590,12 +590,6 @@ export class Record {
     }
   } 
 
-  public update(value: any) {
-    // mutates a record if it is mutable
-    // called by db for client (involves signing and encrypting)
-    // if it involves db ops (with shards) it should be called in db 
-  }
-
   // move to crypto module
 
   public createPoR(nodeId: string) {
@@ -711,7 +705,7 @@ export class Record {
   public isValidUpdate(value: IValue, update: IValue) {
 
     const test = {
-      valid: true,
+      valid: false,
       reason: <string> null
     }
 

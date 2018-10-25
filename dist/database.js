@@ -165,7 +165,7 @@ class DataBase {
     isValidRequest(record, hosts) {
         // is this a valid request message?
         const test = {
-            valid: true,
+            valid: false,
             reason: null
         };
         // is the timestamp within 10 minutes?
@@ -184,7 +184,7 @@ class DataBase {
     }
     async isValidContractOp(record, contract, shardMap, request, sizeDelta) {
         const test = {
-            valid: true,
+            valid: false,
             reason: null
         };
         // has a valid contract tx been gossiped?
@@ -233,7 +233,7 @@ class DataBase {
     async isValidPutRequest(record, contract, request) {
         // is this a valid put request message?
         const test = {
-            valid: true,
+            valid: false,
             reason: null
         };
         const shardMap = this.getShardAndHostsForKey(record.key, contract);
@@ -244,7 +244,7 @@ class DataBase {
         }
         // is valid operation for contract?
         const isValidContractOp = await this.isValidContractOp(record, contract, shardMap.hosts, request);
-        if (!isValidContractOp) {
+        if (!isValidContractOp.valid) {
             return isValidContractOp;
         }
         test.valid = true;
@@ -252,7 +252,7 @@ class DataBase {
     }
     isValidGetRequest(record, contract, shardId) {
         const test = {
-            valid: true,
+            valid: false,
             reason: null
         };
         const shardMap = this.getShardAndHostsForKey(record.key, contract);
@@ -271,7 +271,7 @@ class DataBase {
     }
     async isValidRevRequest(oldRecord, newRecord, contract, shardId, request) {
         const test = {
-            valid: true,
+            valid: false,
             reason: null,
             data: null
         };
@@ -294,7 +294,7 @@ class DataBase {
         // is valid operation for contract?
         const sizeDelta = oldRecord.getSize() - newRecord.getSize();
         const isValidContractOp = await this.isValidContractOp(newRecord, contract, shardMap.hosts, request, sizeDelta);
-        if (!isValidContractOp) {
+        if (!isValidContractOp.valid) {
             return isValidContractOp;
         }
         test.valid = true;
@@ -303,7 +303,7 @@ class DataBase {
     }
     async isValidDelRequest(record, contract, shardId, request) {
         const test = {
-            valid: true,
+            valid: false,
             reason: null
         };
         const shardMap = this.getShardAndHostsForKey(record.key, contract);
@@ -323,7 +323,7 @@ class DataBase {
         }
         // is valid operation for contract?
         const isValidContractOp = await this.isValidContractOp(record, contract, shardMap.hosts, request);
-        if (!isValidContractOp) {
+        if (!isValidContractOp.valid) {
             return isValidContractOp;
         }
         test.valid = true;
@@ -514,11 +514,6 @@ class Record {
                 throw new Error('Unknown encoding, cannot decode');
         }
     }
-    update(value) {
-        // mutates a record if it is mutable
-        // called by db for client (involves signing and encrypting)
-        // if it involves db ops (with shards) it should be called in db 
-    }
     // move to crypto module
     createPoR(nodeId) {
         // creates a mock Proof of Replication for a record from this node
@@ -610,7 +605,7 @@ class Record {
     }
     isValidUpdate(value, update) {
         const test = {
-            valid: true,
+            valid: false,
             reason: null
         };
         // version should be equal 
