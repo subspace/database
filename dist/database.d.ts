@@ -71,10 +71,10 @@ export declare class DataBase implements IDataBase {
     getShardForKey(key: string, contract: IContract): string;
     getHosts(key: string, contract: IContract): string[];
 }
-export declare class Record implements IRecord {
+export declare class Record {
     key: string;
     value: IValue;
-    constructor();
+    constructor(key?: string, value?: IValue);
     encodeContent(content: any): void;
     decodeContent(): void;
     update(value: any): void;

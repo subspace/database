@@ -440,9 +440,9 @@ class DataBase {
 }
 exports.DataBase = DataBase;
 class Record {
-    constructor() {
-        this.key = null;
-        this.value = null;
+    constructor(key = null, value = null) {
+        this.key = key;
+        this.value = value;
     }
     encodeContent(content) {
         // determine content and encoding and encode content as string

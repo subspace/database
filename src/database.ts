@@ -516,9 +516,12 @@ export class DataBase implements IDataBase {
 }
 
 export class Record {
-  key: string = null
-  value: IValue = null
-  constructor () {}
+  constructor (
+    public key: string = null,
+    public value: IValue = null
+  ) {
+
+  }
 
   public encodeContent(content: any) {
     // determine content and encoding and encode content as string
