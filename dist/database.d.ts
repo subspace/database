@@ -1,6 +1,13 @@
-import { IDataBase, IRecord, IValue, IContract, IShards } from './interfaces';
+import { IDataBase, IRecord, IValue, IContract, IShards, IRequest } from './interfaces';
 import { Destination } from '@subspace/rendezvous-hash';
+export { IRecord, IValue };
+/**
+ * Size of one shard in bytes (100M)
+ */
 export declare const SHARD_SIZE = 100000000;
+/**
+ * Pledge size in bytes (100 shards or 10G)
+ */
 export declare const PLEDGE_SIZE: number;
 export declare class DataBase implements IDataBase {
     private wallet;
@@ -23,20 +30,20 @@ export declare class DataBase implements IDataBase {
         valid: boolean;
         reason: string;
     };
-    isValidContractOp(record: IRecord, contract: IContract, shardMap: any, sizeDelta?: number): {
+    isValidContractOp(record: IRecord, contract: IContract, shardMap: any, request: IRequest, sizeDelta?: number): Promise<{
         valid: boolean;
         reason: string;
-    };
-    isValidPutRequest(record: IRecord, contract: IContract): {
+    }>;
+    isValidPutRequest(record: IRecord, contract: IContract, request: IRequest): Promise<{
         valid: boolean;
         reason: string;
-    };
+    }>;
     isValidGetRequest(record: IRecord, contract: IContract, shardId: string): {
         valid: boolean;
         reason: string;
     };
-    isValidRevRequest(oldRecord: IRecord, newRecord: IRecord, contract: IContract, shardId: string): any;
-    isValidDelRequest(proof: any, record: IRecord, contract: IContract, shardId: string): Promise<{
+    isValidRevRequest(oldRecord: IRecord, newRecord: IRecord, contract: IContract, shardId: string, request: IRequest): Promise<any>;
+    isValidDelRequest(record: IRecord, contract: IContract, shardId: string, request: IRequest): Promise<{
         valid: boolean;
         reason: string;
     }>;
@@ -64,13 +71,12 @@ export declare class DataBase implements IDataBase {
     getShardForKey(key: string, contract: IContract): string;
     getHosts(key: string, contract: IContract): string[];
 }
-export declare class Record implements IRecord {
+export declare class Record {
     key: string;
     value: IValue;
-    constructor();
+    constructor(key?: string, value?: IValue);
     encodeContent(content: any): void;
     decodeContent(): void;
-    update(value: any): void;
     createPoR(nodeId: string): string;
     isValidPoR(nodeId: string, proof: string): boolean;
     createPoD(nodeId: string): string;

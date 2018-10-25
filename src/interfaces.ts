@@ -1,5 +1,3 @@
-import { decrypt } from "openpgp";
-
 export interface IDataBase {
   shards: IShards
 }
@@ -42,13 +40,11 @@ export interface IValue {
   version: number       // SSDB encoding version of this record
   encoding: string      // the value encoding for the content
   symkey: string        // asym encrypted symmetric key
-  content: any       // the data being stored, encrypted by default
-  owner: string         // the node_id who created the record
-  createdAt: number     // unix timestamp when created or revised
-  size: number          // size of the full record
-  contractKey: string   // public key of record contract
-  contractSig: string   // signature with contract private key
-
+  content: any           // the data being stored, encrypted by default
+  createdAt: number     // unix timestamp when created 
+  ownerKey: string      // full public key of record creator
+  ownerSig: string      // singature of record creator
+  
   // mutable only properties
   publicKey?: string     // public key of this record
   privateKey?: string    // sym encrypted private key of this record
@@ -74,6 +70,13 @@ export interface IContract {
   publicKey: string
   privateKey: string
   privateKeyObject: any
+}
+
+export interface IRequest {
+  record: IRecord
+  contractKey: string
+  timestamp: number
+  signature: string
 }
 
 
