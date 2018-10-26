@@ -51,16 +51,26 @@ export class DataBase implements IDataBase {
   // Record CRUD Operations
   // **********************
 
+  public async createMutableContract() {
+
+  }
+
+  public async createImmutableContract() {
+    // why cant the contract tx be the immutable contract?
+  }
+
+
   public async createRecord(content: any, encrypted: boolean) {
     // creates and returns a new record instance from a given value and the current contract
 
-    const profile = this.wallet.getProfile()
     const contract = this.wallet.getContract()
+    const profile = this.wallet.getProfile()
+    
     const record = new Record()
 
     record.value.immutable = true
     record.value.version = 0
-    record.value.ownerKey = profile.publicKey
+    // record.value.ownerKey = profile.publicKey
     record.value.createdAt = Date.now()
     record.value.symkey = null
 
@@ -88,7 +98,7 @@ export class DataBase implements IDataBase {
       record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject)
     }
 
-    record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
+    // record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
 
     if (!contract.ttl) {  // if immutable, key is hash of content
       record.key = crypto.getHash(JSON.stringify(record.value))
@@ -154,13 +164,13 @@ export class DataBase implements IDataBase {
     } 
 
     record.value.recordSig = null
-    record.value.ownerSig = null
+    // record.value.ownerSig = null
     record.value.contentHash = crypto.getHash(record.value.content)
     record.value.revision += 1
     record.value.updatedAt = Date.now()
     record.value.privateKey = await crypto.encryptAssymetric(record.value.privateKey, profile.publicKey)
     record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject)
-    record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
+    // record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
     await this.storage.put(record.key, JSON.stringify(record.value))
     return record
   }
@@ -231,10 +241,10 @@ export class DataBase implements IDataBase {
 
     // does record owner match contract owner 
     // add ACL later
-    if (crypto.getHash(record.value.ownerKey) !== contract.owner) {
-      test.reason = 'Invalid del request, contract does not match record contract'
-      return test
-    }
+    // if (crypto.getHash(record.value.ownerKey) !== contract.owner) {
+    //   test.reason = 'Invalid del request, contract does not match record contract'
+    //   return test
+    // }
 
     // is valid contract signature
     const unsignedValue = {...request}
@@ -638,11 +648,11 @@ export class Record {
       return test
     }
 
-    if (sender) {
-      if (sender !== crypto.getHash(this.value.ownerKey))
-        test.reason = 'Invalid, sender is not owner'
-        return test
-    }
+    // if (sender) {
+    //   if (sender !== crypto.getHash(this.value.ownerKey))
+    //     test.reason = 'Invalid, sender is not owner'
+    //     return test
+    // }
 
     // timestamp is no more than 10 minutes in the future
     if (this.value.createdAt > (Date.now() + 60000)) {
@@ -650,15 +660,15 @@ export class Record {
         return test
     }
 
-    // is valid owner signature
-    const unsignedValue = {...this.value}
-    unsignedValue.ownerSig = null
-    const validSignature = await crypto.isValidSignature(unsignedValue, this.value.ownerSig, this.value.ownerKey)
+    // // is valid owner signature
+    // const unsignedValue = {...this.value}
+    // unsignedValue.ownerSig = null
+    // const validSignature = await crypto.isValidSignature(unsignedValue, this.value.ownerSig, this.value.ownerKey)
 
-    if (!validSignature) {
-      test.reason = 'Invalid owner signature'
-      return test
-    }
+    // if (!validSignature) {
+    //   test.reason = 'Invalid owner signature'
+    //   return test
+    // }
 
     // ********************
     // Immutable Properties
@@ -689,7 +699,7 @@ export class Record {
       // does the record signature match the record public key
       let unsignedValue = { ...this.value }
       unsignedValue.recordSig = null
-      unsignedValue.ownerSig = null
+      // unsignedValue.ownerSig = null
       const validSignature = await crypto.isValidSignature(unsignedValue, this.value.recordSig, this.value.publicKey)
 
       if (!validSignature) {
@@ -728,10 +738,10 @@ export class Record {
     }
 
     // owner public keys should be the same 
-    if (value.ownerKey !== update.ownerKey) {
-      test.reason = 'Contract public keys do not match on mutation'
-      return test 
-    }
+    // if (value.ownerKey !== update.ownerKey) {
+    //   test.reason = 'Contract public keys do not match on mutation'
+    //   return test 
+    // }
 
     // record publickey will be the same
     if (value.publicKey !== update.publicKey) {
@@ -757,11 +767,11 @@ export class Record {
       return test 
     } 
 
-    // contract signature must be different 
-    if (value.ownerSig !== update.ownerSig) {
-      test.reason = 'Contract signatures cannot match on mutation'
-      return test 
-    } 
+    // // contract signature must be different 
+    // if (value.ownerSig !== update.ownerSig) {
+    //   test.reason = 'Contract signatures cannot match on mutation'
+    //   return test 
+    // } 
 
     test.valid = true
     return test

@@ -15,6 +15,8 @@ export declare class DataBase implements IDataBase {
     private tracker;
     constructor(wallet: any, storage: any, tracker: any);
     shards: IShards;
+    createMutableContract(): Promise<void>;
+    createImmutableContract(): Promise<void>;
     createRecord(content: any, encrypted: boolean): Promise<Record>;
     getRecord(key: string): Promise<Record>;
     loadRecord(recordObject: IRecord): Record;

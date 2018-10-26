@@ -42,8 +42,8 @@ export interface IValue {
   symkey: string        // asym encrypted symmetric key
   content: any           // the data being stored, encrypted by default
   createdAt: number     // unix timestamp when created 
-  ownerKey: string      // full public key of record creator
-  ownerSig: string      // singature of record creator
+  // ownerKey: string      // full public key of record creator
+  // ownerSig: string      // singature of record creator
   
   // mutable only properties
   publicKey?: string     // public key of this record
