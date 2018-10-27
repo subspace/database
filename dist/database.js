@@ -50,11 +50,6 @@ class DataBase {
     // **********************
     // Record CRUD Operations
     // **********************
-    async createMutableContract() {
-    }
-    async createImmutableContract(content, ecnrytped, timestamp = true, contract) {
-        // why cant the contract tx be the immutable contract?
-    }
     async createImmutableRecord(content, encrypted, timestamped = true) {
         // create a new immutable record
         const profile = this.wallet.getProfile();
@@ -118,43 +113,19 @@ class DataBase {
         record.setKey();
         return record;
     }
-    // public async createRecord(content: any, encrypted: boolean) {
-    //   // creates and returns a new record instance from a given value and the current contract
-    //   const contract = this.wallet.getContract()
-    //   const profile = this.wallet.getProfile()
-    //   const record = new Record()
-    //   record.value.immutable = true
-    //   record.value.version = 0
-    //   // record.value.ownerKey = profile.publicKey
-    //   record.value.createdAt = Date.now()
-    //   record.value.symkey = null
-    //   record.encodeContent()
-    //   if (encrypted) { // sym encrypt value and asym encrypt sym key
-    //     const symkey = crypto.getRandom()
-    //     record.value.content = await crypto.encryptSymmetric(record.value.content, symkey)
-    //     record.value.symkey = await crypto.encryptAssymetric(symkey, profile.publicKey)
-    //   } 
-    //   if (contract.ttl) { // mutable record, gen keys and add mutable values
-    //     record.value.immutable = false
-    //     const keys = await crypto.generateKeys(MUTABLE_KEY_NAME, MUTABLE_KEY_EMAIL, MUTABLE_KEY_PASSPRHASE)
-    //     record.key = crypto.getHash(keys.publicKeyArmored)
-    //     record.value.publicKey = keys.publicKeyArmored
-    //     record.value.privateKey = await crypto.encryptAssymetric(keys.privateKeyArmored, profile.publicKey)
-    //     record.value.contentHash = crypto.getHash(record.value.content)
-    //     record.value.revision = 0
-    //     record.value.updatedAt = null
-    //     record.value.recordSig = null
-    //   } 
-    //   if (contract.ttl) { // if mutable, sign after getting size, add size of signature
-    //     record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject)
-    //   }
-    //   // record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
-    //   if (!contract.ttl) {  // if immutable, key is hash of content
-    //     record.key = crypto.getHash(JSON.stringify(record.value))
-    //   }
-    //   await this.storage.put(record.key, JSON.stringify(record.value))
-    //   return record
-    // }
+    async createRecord(content, encrypted) {
+        // creates and saves a new record based on current default contract
+        const contract = this.wallet.getContract();
+        let record;
+        if (contract.ttl) {
+            record = await this.createMutableRecord(content, encrypted);
+        }
+        else {
+            record = await this.createImmutableRecord(content, encrypted);
+        }
+        await this.storage.put(record.key, JSON.stringify(record.value));
+        return record;
+    }
     async getRecord(key) {
         // loads and returns an existing record instance on disk from a given key (from short key)
         const stringRecord = await this.storage.get(key);

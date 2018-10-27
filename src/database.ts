@@ -2,6 +2,7 @@ import {IDataBase, IRecord, IValue, IContract, IShards, IRequest} from './interf
 import * as crypto from '@subspace/crypto'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
+import { encrypt } from 'openpgp';
 export {IRecord, IValue}
 
 // ToDo
@@ -51,14 +52,6 @@ export class DataBase implements IDataBase {
   // **********************
   // Record CRUD Operations
   // **********************
-
-  public async createMutableContract() {
-
-  }
-
-  public async createImmutableContract(content: any, ecnrytped: boolean, timestamp = true, contract?: any) {
-    // why cant the contract tx be the immutable contract?
-  }
 
   public async createImmutableRecord(content: any, encrypted: boolean, timestamped = true) {
     // create a new immutable record
@@ -138,53 +131,21 @@ export class DataBase implements IDataBase {
     return record
   }
 
-  // public async createRecord(content: any, encrypted: boolean) {
-  //   // creates and returns a new record instance from a given value and the current contract
+  public async createRecord(content: any, encrypted: boolean) {
+    // creates and saves a new record based on current default contract
 
-  //   const contract = this.wallet.getContract()
-  //   const profile = this.wallet.getProfile()
-    
-  //   const record = new Record()
+    const contract = this.wallet.getContract()
 
-  //   record.value.immutable = true
-  //   record.value.version = 0
-  //   // record.value.ownerKey = profile.publicKey
-  //   record.value.createdAt = Date.now()
-  //   record.value.symkey = null
+    let record: Record
+    if (contract.ttl) {
+      record = await this.createMutableRecord(content, encrypted)
+    } else {
+      record = await this.createImmutableRecord(content, encrypted)
+    }
 
-  //   record.encodeContent()
-    
-  //   if (encrypted) { // sym encrypt value and asym encrypt sym key
-  //     const symkey = crypto.getRandom()
-  //     record.value.content = await crypto.encryptSymmetric(record.value.content, symkey)
-  //     record.value.symkey = await crypto.encryptAssymetric(symkey, profile.publicKey)
-  //   } 
-
-  //   if (contract.ttl) { // mutable record, gen keys and add mutable values
-  //     record.value.immutable = false
-  //     const keys = await crypto.generateKeys(MUTABLE_KEY_NAME, MUTABLE_KEY_EMAIL, MUTABLE_KEY_PASSPRHASE)
-  //     record.key = crypto.getHash(keys.publicKeyArmored)
-  //     record.value.publicKey = keys.publicKeyArmored
-  //     record.value.privateKey = await crypto.encryptAssymetric(keys.privateKeyArmored, profile.publicKey)
-  //     record.value.contentHash = crypto.getHash(record.value.content)
-  //     record.value.revision = 0
-  //     record.value.updatedAt = null
-  //     record.value.recordSig = null
-  //   } 
-
-  //   if (contract.ttl) { // if mutable, sign after getting size, add size of signature
-  //     record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject)
-  //   }
-
-  //   // record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
-
-  //   if (!contract.ttl) {  // if immutable, key is hash of content
-  //     record.key = crypto.getHash(JSON.stringify(record.value))
-  //   }
-
-  //   await this.storage.put(record.key, JSON.stringify(record.value))
-  //   return record
-  // }
+    await this.storage.put(record.key, JSON.stringify(record.value))
+    return record
+  }
 
   public async getRecord(key: string) {
     // loads and returns an existing record instance on disk from a given key (from short key)
