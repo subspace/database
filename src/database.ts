@@ -28,8 +28,8 @@ export class DataBase implements IDataBase {
   
   constructor(
     private wallet: any,
-    private storage: any,
-    private tracker: any
+    private storage?: any,
+    private tracker?: any
   ) {
     this.shards.load()
   }

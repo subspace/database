@@ -11,9 +11,9 @@ export declare const SHARD_SIZE = 100000000;
 export declare const PLEDGE_SIZE: number;
 export declare class DataBase implements IDataBase {
     private wallet;
-    private storage;
-    private tracker;
-    constructor(wallet: any, storage: any, tracker: any);
+    private storage?;
+    private tracker?;
+    constructor(wallet: any, storage?: any, tracker?: any);
     shards: IShards;
     createImmutableRecord(content: any, encrypted: boolean, timestamped?: boolean): Promise<Record>;
     createMutableRecord(content: any, encrypted: boolean): Promise<Record>;
