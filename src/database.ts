@@ -234,10 +234,12 @@ export class DataBase implements IDataBase {
       reason: <string> null
     }
 
-    // is the timestamp within 10 minutes?
-    if (! crypto.isDateWithinRange(record.value.createdAt, 60000) ) {
-      test.reason = 'Invalid request, timestamp is not within 10 minutes'
-      return test
+    if (!record.value.immutable) {
+      // is the timestamp within 10 minutes?
+      if (! crypto.isDateWithinRange(record.value.createdAt, 60000) ) {
+        test.reason = 'Invalid request, timestamp is not within 10 minutes'
+        return test
+      }
     }
 
     // am I the valid host for shard?
@@ -679,11 +681,6 @@ export class Record {
       return test
     }
 
-    // timestamp is no more than 10 minutes in the future
-    if (this.value.createdAt > (Date.now() + 60000)) {
-        test.reason = 'Invalid record timestamp, greater than 10 minutes ahead'
-        return test
-    }
 
     // ********************
     // Immutable Properties
@@ -703,6 +700,12 @@ export class Record {
     // ******************
 
     if (!this.value.immutable) {
+
+      // timestamp is no more than 10 minutes in the future
+      if (this.value.createdAt > (Date.now() + 60000)) {
+        test.reason = 'Invalid record timestamp, greater than 10 minutes ahead'
+        return test
+      }
 
       // does the encrypted content value match the hash?
       const validHash = crypto.isValidHash(this.value.contentHash, JSON.stringify(this.value.content))
