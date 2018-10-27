@@ -11,6 +11,7 @@ const VALID_ENCODING = ['null', 'string', 'number', 'boolean', 'array', 'object'
 const MUTABLE_KEY_NAME = 'key'
 const MUTABLE_KEY_EMAIL = 'key@key.com'
 const MUTABLE_KEY_PASSPRHASE = 'lockandkey'
+const SCHEMA_VERSION = 0
 
 /**
  * Size of one shard in bytes (100M)
@@ -55,77 +56,146 @@ export class DataBase implements IDataBase {
 
   }
 
-  public async createImmutableContract() {
+  public async createImmutableContract(content: any, ecnrytped: boolean, timestamp = true, contract?: any) {
     // why cant the contract tx be the immutable contract?
   }
 
+  public async createImmutableRecord(content: any, encrypted: boolean, timestamped = true) {
+    // create a new immutable record
 
-  public async createRecord(content: any, encrypted: boolean) {
-    // creates and returns a new record instance from a given value and the current contract
-
-    const contract = this.wallet.getContract()
     const profile = this.wallet.getProfile()
-    
-    const record = new Record()
 
-    record.value.immutable = true
-    record.value.version = 0
-    // record.value.ownerKey = profile.publicKey
-    record.value.createdAt = Date.now()
-    record.value.symkey = null
+    let symkey: string = null
+    if (encrypted) {
+      symkey = crypto.getRandom()
+    }
 
-    record.encodeContent(content)
-    
-    if (encrypted) { // sym encrypt value and asym encrypt sym key
-      const symkey = crypto.getRandom()
+    let timestamp: number = null
+    if (timestamped) {
+      timestamp = Date.now()
+    }
+
+    const recordData: IValue = {
+      immutable: true,
+      version: SCHEMA_VERSION,
+      encoding: null,
+      symkey: symkey,
+      content: content,
+      createdAt: timestamp
+    }
+
+    const record = new Record(null, recordData)
+    record.encodeContent()
+
+    if (encrypted) {
       record.value.content = await crypto.encryptSymmetric(record.value.content, symkey)
       record.value.symkey = await crypto.encryptAssymetric(symkey, profile.publicKey)
-    } 
-
-    if (contract.ttl) { // mutable record, gen keys and add mutable values
-      record.value.immutable = false
-      const keys = await crypto.generateKeys(MUTABLE_KEY_NAME, MUTABLE_KEY_EMAIL, MUTABLE_KEY_PASSPRHASE)
-      record.key = crypto.getHash(keys.publicKeyArmored)
-      record.value.publicKey = keys.publicKeyArmored
-      record.value.privateKey = await crypto.encryptAssymetric(keys.privateKeyArmored, profile.publicKey)
-      record.value.contentHash = crypto.getHash(record.value.content)
-      record.value.revision = 0
-      record.value.updatedAt = null
-      record.value.recordSig = null
-    } 
-
-    if (contract.ttl) { // if mutable, sign after getting size, add size of signature
-      record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject)
     }
 
-    // record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
+    record.setKey()
+    return record 
+  }
 
-    if (!contract.ttl) {  // if immutable, key is hash of content
-      record.key = crypto.getHash(JSON.stringify(record.value))
+  public async createMutableRecord(content: any, encrypted: boolean) {
+    // create a new mutable record 
+
+    const profile = this.wallet.getProfile()
+
+    let symkey: string = null
+    if (encrypted) {
+      symkey = crypto.getRandom()
     }
 
-    await this.storage.put(record.key, JSON.stringify(record.value))
+    const keys = await crypto.generateKeys(MUTABLE_KEY_NAME, MUTABLE_KEY_EMAIL, MUTABLE_KEY_PASSPRHASE)
+    const privateKeyObject = await crypto.getPrivateKeyObject(keys.privateKeyArmored, MUTABLE_KEY_PASSPRHASE)
+
+    const recordData: IValue = {
+      immutable: false,
+      version: SCHEMA_VERSION,
+      encoding: null,
+      symkey: symkey,
+      content: content,
+      createdAt: Date.now(),
+      publicKey: keys.publicKeyArmored,
+      privateKey: keys.privateKeyArmored,
+      contentHash: null,
+      revision: 0,
+      updatedAt: null,
+      recordSig: null
+    }
+    const record = new Record(null, recordData)
+    record.encodeContent()
+
+    if (encrypted) {
+      record.value.content = await crypto.encryptSymmetric(record.value.content, symkey)
+      record.value.symkey = await crypto.encryptAssymetric(symkey, profile.publicKey)
+    }
+
+    record.value.privateKey = await crypto.encryptAssymetric(keys.privateKeyArmored, profile.publicKey)
+    record.value.contentHash = crypto.getHash(record.value.content)
+    record.value.recordSig = await crypto.sign(record.value, privateKeyObject)
+    record.setKey()
     return record
   }
+
+  // public async createRecord(content: any, encrypted: boolean) {
+  //   // creates and returns a new record instance from a given value and the current contract
+
+  //   const contract = this.wallet.getContract()
+  //   const profile = this.wallet.getProfile()
+    
+  //   const record = new Record()
+
+  //   record.value.immutable = true
+  //   record.value.version = 0
+  //   // record.value.ownerKey = profile.publicKey
+  //   record.value.createdAt = Date.now()
+  //   record.value.symkey = null
+
+  //   record.encodeContent()
+    
+  //   if (encrypted) { // sym encrypt value and asym encrypt sym key
+  //     const symkey = crypto.getRandom()
+  //     record.value.content = await crypto.encryptSymmetric(record.value.content, symkey)
+  //     record.value.symkey = await crypto.encryptAssymetric(symkey, profile.publicKey)
+  //   } 
+
+  //   if (contract.ttl) { // mutable record, gen keys and add mutable values
+  //     record.value.immutable = false
+  //     const keys = await crypto.generateKeys(MUTABLE_KEY_NAME, MUTABLE_KEY_EMAIL, MUTABLE_KEY_PASSPRHASE)
+  //     record.key = crypto.getHash(keys.publicKeyArmored)
+  //     record.value.publicKey = keys.publicKeyArmored
+  //     record.value.privateKey = await crypto.encryptAssymetric(keys.privateKeyArmored, profile.publicKey)
+  //     record.value.contentHash = crypto.getHash(record.value.content)
+  //     record.value.revision = 0
+  //     record.value.updatedAt = null
+  //     record.value.recordSig = null
+  //   } 
+
+  //   if (contract.ttl) { // if mutable, sign after getting size, add size of signature
+  //     record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject)
+  //   }
+
+  //   // record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
+
+  //   if (!contract.ttl) {  // if immutable, key is hash of content
+  //     record.key = crypto.getHash(JSON.stringify(record.value))
+  //   }
+
+  //   await this.storage.put(record.key, JSON.stringify(record.value))
+  //   return record
+  // }
 
   public async getRecord(key: string) {
     // loads and returns an existing record instance on disk from a given key (from short key)
     const stringRecord = await this.storage.get(key)
-    const recordObject = {
-      key: key,
-      value: JSON.parse(stringRecord)
-    }
-    const record = new Record()
-    record.key = recordObject.key
-    record.value = recordObject.value
+    const record = new Record(key, JSON.parse(stringRecord))
     return record   
   }
 
   public loadRecord(recordObject: IRecord) {
     // loads and returns an existing record instance from an encoded record received over the network
-    const record = new Record()
-    record.key = recordObject.key
-    record.value = recordObject.value
+    const record = new Record(recordObject.key, recordObject.value)
     return record
   }
 
@@ -153,10 +223,12 @@ export class DataBase implements IDataBase {
   public async revRecord(key: string, update: any) {
     // loads an existing record instance from key, applies update, and returns instance, called by client
     const profile = this.wallet.getProfile()
-    const contract = this.wallet.getContract()
     const record = await this.getRecord(key)
     await record.decrypt(profile.privateKeyObject)
-    record.encodeContent(update)
+    record.value.content = update
+    record.encodeContent()
+
+    const privateKeyObject = await crypto.getPrivateKeyObject(record.value.privateKey, MUTABLE_KEY_PASSPRHASE)
 
     if (record.value.symkey) { // sym encrypt value and asym encrypt sym key
       record.value.content = await crypto.encryptSymmetric(record.value.content, record.value.symkey)
@@ -164,13 +236,11 @@ export class DataBase implements IDataBase {
     } 
 
     record.value.recordSig = null
-    // record.value.ownerSig = null
     record.value.contentHash = crypto.getHash(record.value.content)
     record.value.revision += 1
     record.value.updatedAt = Date.now()
     record.value.privateKey = await crypto.encryptAssymetric(record.value.privateKey, profile.publicKey)
-    record.value.recordSig = await crypto.sign(record.value, profile.privateKeyObject)
-    // record.value.ownerSig = await crypto.sign(record.value, profile.privateKeyObject)
+    record.value.recordSig = await crypto.sign(record.value, privateKeyObject)
     await this.storage.put(record.key, JSON.stringify(record.value))
     return record
   }
@@ -533,14 +603,14 @@ export class Record {
 
   }
 
-  public encodeContent(content: any) {
+  public encodeContent() {
     // determine content and encoding and encode content as string
+    const content = this.value.content
     switch(typeof content) {
       case('undefined'):
         throw new Error('Cannot create a record from content: undefined')
       case('string'):
         this.value.encoding = 'string'
-        this.value.content = content
         break
       case('number'):
         this.value.encoding = 'string'
@@ -648,27 +718,11 @@ export class Record {
       return test
     }
 
-    // if (sender) {
-    //   if (sender !== crypto.getHash(this.value.ownerKey))
-    //     test.reason = 'Invalid, sender is not owner'
-    //     return test
-    // }
-
     // timestamp is no more than 10 minutes in the future
     if (this.value.createdAt > (Date.now() + 60000)) {
         test.reason = 'Invalid record timestamp, greater than 10 minutes ahead'
         return test
     }
-
-    // // is valid owner signature
-    // const unsignedValue = {...this.value}
-    // unsignedValue.ownerSig = null
-    // const validSignature = await crypto.isValidSignature(unsignedValue, this.value.ownerSig, this.value.ownerKey)
-
-    // if (!validSignature) {
-    //   test.reason = 'Invalid owner signature'
-    //   return test
-    // }
 
     // ********************
     // Immutable Properties
@@ -699,7 +753,6 @@ export class Record {
       // does the record signature match the record public key
       let unsignedValue = { ...this.value }
       unsignedValue.recordSig = null
-      // unsignedValue.ownerSig = null
       const validSignature = await crypto.isValidSignature(unsignedValue, this.value.recordSig, this.value.publicKey)
 
       if (!validSignature) {
@@ -737,12 +790,6 @@ export class Record {
       return test 
     }
 
-    // owner public keys should be the same 
-    // if (value.ownerKey !== update.ownerKey) {
-    //   test.reason = 'Contract public keys do not match on mutation'
-    //   return test 
-    // }
-
     // record publickey will be the same
     if (value.publicKey !== update.publicKey) {
       test.reason = 'Record public keys do not match on mutation'
@@ -767,12 +814,6 @@ export class Record {
       return test 
     } 
 
-    // // contract signature must be different 
-    // if (value.ownerSig !== update.ownerSig) {
-    //   test.reason = 'Contract signatures cannot match on mutation'
-    //   return test 
-    // } 
-
     test.valid = true
     return test
   }
@@ -788,6 +829,14 @@ export class Record {
     if (!this.value.immutable) {
       // asym decyprt the record private key with node private key
       this.value.privateKey = await crypto.decryptAssymetric(this.value.privateKey, privateKeyObject)
+    }
+  }
+
+  setKey() {
+    if (this.value.immutable) {
+      this.key = crypto.getHash(JSON.stringify(this.value))
+    } else {
+      this.key = crypto.getHash(this.value.publicKey)
     }
   }
 

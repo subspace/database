@@ -16,8 +16,9 @@ export declare class DataBase implements IDataBase {
     constructor(wallet: any, storage: any, tracker: any);
     shards: IShards;
     createMutableContract(): Promise<void>;
-    createImmutableContract(): Promise<void>;
-    createRecord(content: any, encrypted: boolean): Promise<Record>;
+    createImmutableContract(content: any, ecnrytped: boolean, timestamp?: boolean, contract?: any): Promise<void>;
+    createImmutableRecord(content: any, encrypted: boolean, timestamped?: boolean): Promise<Record>;
+    createMutableRecord(content: any, encrypted: boolean): Promise<Record>;
     getRecord(key: string): Promise<Record>;
     loadRecord(recordObject: IRecord): Record;
     saveRecord(record: IRecord, contract: IContract, update?: boolean, sizeDelta?: number): Promise<void>;
@@ -77,7 +78,7 @@ export declare class Record {
     key: string;
     value: IValue;
     constructor(key?: string, value?: IValue);
-    encodeContent(content: any): void;
+    encodeContent(): void;
     decodeContent(): void;
     createPoR(nodeId: string): string;
     isValidPoR(nodeId: string, proof: string): boolean;
@@ -92,6 +93,7 @@ export declare class Record {
         reason: string;
     };
     decrypt(privateKeyObject: any): Promise<void>;
+    setKey(): void;
     getSize(): number;
     getRecord(): {
         key: string;
