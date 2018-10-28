@@ -17,21 +17,6 @@ export interface IShard {
 export interface IRecord {
   key: string,
   value: IValue
-  encodeContent(content: any): void
-  decodeContent(): void
-  update(value: any): void
-  createPoR(nodeId: string): string
-  isValidPoR(nodeId: string, proof: string): boolean
-  createPoD(nodeId: string): string
-  isValidPoD(nodeId: string, proof: string): boolean
-  isValid(sender: string): Promise<any>
-  isValidUpdate(value: IValue, update: IValue): any
-  decrypt(privateKeyObject: any): Promise<void>
-  getSize(): number
-  getRecord(): any
-  getContent(shardId: string, replicationFactor: number, privateKeyObject: any): Promise<any>
-
-
 }
 
 export interface IValue {

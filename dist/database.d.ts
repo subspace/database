@@ -19,9 +19,9 @@ export declare class DataBase implements IDataBase {
     getRecord(key: string): Promise<Record>;
     loadPackedRecord(recordObject: IRecord): Record;
     loadUnpackedRecord(recordObject: IRecord): Record;
-    saveRecord(record: IRecord, contract: IContract, update?: boolean, sizeDelta?: number): Promise<void>;
+    saveRecord(record: Record, contract: IContract, update?: boolean, sizeDelta?: number): Promise<void>;
     revRecord(key: string, update: any): Promise<Record>;
-    delRecord(record: IRecord, shardId: string): Promise<void>;
+    delRecord(record: Record, shardId: string): Promise<void>;
     parseRecordKey(key: string): {
         shardId: string;
         recordId: string;
@@ -31,11 +31,11 @@ export declare class DataBase implements IDataBase {
         valid: boolean;
         reason: string;
     };
-    isValidContractOp(record: IRecord, contract: IContract, shardMap: any, request: IRequest, sizeDelta?: number): Promise<{
+    isValidContractOp(record: Record, contract: IContract, shardMap: any, request: IRequest, sizeDelta?: number): Promise<{
         valid: boolean;
         reason: string;
     }>;
-    isValidPutRequest(record: IRecord, contract: IContract, request: IRequest): Promise<{
+    isValidPutRequest(record: Record, contract: IContract, request: IRequest): Promise<{
         valid: boolean;
         reason: string;
     }>;
@@ -43,8 +43,11 @@ export declare class DataBase implements IDataBase {
         valid: boolean;
         reason: string;
     };
-    isValidRevRequest(oldRecord: IRecord, newRecord: IRecord, contract: IContract, shardId: string, request: IRequest): Promise<any>;
-    isValidDelRequest(record: IRecord, contract: IContract, shardId: string, request: IRequest): Promise<{
+    isValidRevRequest(oldRecord: Record, newRecord: Record, contract: IContract, shardId: string, request: IRequest): Promise<{
+        valid: boolean;
+        reason: string;
+    }>;
+    isValidDelRequest(record: Record, contract: IContract, shardId: string, request: IRequest): Promise<{
         valid: boolean;
         reason: string;
     }>;
@@ -55,9 +58,9 @@ export declare class DataBase implements IDataBase {
     }>;
     getShard(shardId: string): import("src/interfaces").IShard;
     delShard(shardId: string): Promise<void>;
-    putRecordInShard(shardId: string, record: IRecord): Promise<void>;
+    putRecordInShard(shardId: string, record: Record): Promise<void>;
     revRecordInShard(shardId: string, sizeDelta: number): Promise<import("src/interfaces").IShard>;
-    delRecordInShard(shardId: string, record: IRecord): Promise<void>;
+    delRecordInShard(shardId: string, record: Record): Promise<void>;
     computeShardArray(contract: IContract): string[];
     computeShardForKey(key: string, spaceReserved: number): number;
     getDestinations(): Destination[];

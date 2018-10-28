@@ -88,7 +88,7 @@ export class DataBase implements IDataBase {
     return record
   }
 
-  public async saveRecord(record: IRecord, contract: IContract, update?: boolean, sizeDelta?: number) {
+  public async saveRecord(record: Record, contract: IContract, update?: boolean, sizeDelta?: number) {
     // saves an encrypted, encoded record to disk locally, as a host
 
     const shardId = this.getShardForKey(record.key, contract)
@@ -118,7 +118,7 @@ export class DataBase implements IDataBase {
     return record
   }
 
-  public async delRecord(record: IRecord, shardId: string) {
+  public async delRecord(record: Record, shardId: string) {
     // deletes an existing record from a key, for a host
     await this.storage.del(record.key)
     await this.delRecordInShard(shardId, record)
@@ -165,7 +165,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public async isValidContractOp(record: IRecord, contract: IContract, shardMap: any, request: IRequest, sizeDelta?: number) {
+  public async isValidContractOp(record: Record, contract: IContract, shardMap: any, request: IRequest, sizeDelta?: number) {
 
     const test = {
       valid: false,
@@ -220,7 +220,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public async isValidPutRequest(record: IRecord, contract: IContract, request: IRequest) {
+  public async isValidPutRequest(record: Record, contract: IContract, request: IRequest) {
     // is this a valid put request message?
 
     const test = {
@@ -270,7 +270,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public async isValidRevRequest(oldRecord: IRecord, newRecord: IRecord, contract: IContract, shardId: string, request: IRequest) {
+  public async isValidRevRequest(oldRecord: Record, newRecord: Record, contract: IContract, shardId: string, request: IRequest) {
     const test = {
       valid: false,
       reason: <string> null,
@@ -308,7 +308,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public async isValidDelRequest(record: IRecord, contract: IContract, shardId: string, request: IRequest) {
+  public async isValidDelRequest(record: Record, contract: IContract, shardId: string, request: IRequest) {
     const test = {
       valid: false,
       reason: <string> null
@@ -372,7 +372,7 @@ export class DataBase implements IDataBase {
     await this.shards.save()
   } 
 
-  public async putRecordInShard(shardId: string, record: IRecord) {
+  public async putRecordInShard(shardId: string, record: Record) {
     // add a record to shard in shardMap
     const shard = this.shards.map.get(shardId)
     shard.size += record.getSize()
@@ -389,7 +389,7 @@ export class DataBase implements IDataBase {
     return shard
   }
 
-  public async delRecordInShard(shardId: string, record: IRecord) {
+  public async delRecordInShard(shardId: string, record: Record) {
     const shard = await this.getShard(shardId)
     shard.size -= record.getSize()
     shard.records.delete(shardId)
