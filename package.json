@@ -2,6 +2,7 @@
   "name": "@subspace/database",
   "version": "1.0.0",
   "main": "dist/database.js",
+  "types": "dist/database.d.ts",
   "author": "subspace",
   "license": "MIT",
   "private": true,
