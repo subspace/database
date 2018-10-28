@@ -11,13 +11,14 @@ export declare const SHARD_SIZE = 100000000;
 export declare const PLEDGE_SIZE: number;
 export declare class DataBase implements IDataBase {
     private wallet;
-    private storage;
-    private tracker;
-    constructor(wallet: any, storage: any, tracker: any);
+    private storage?;
+    private tracker?;
+    constructor(wallet: any, storage?: any, tracker?: any);
     shards: IShards;
     createRecord(content: any, encrypted: boolean): Promise<Record>;
     getRecord(key: string): Promise<Record>;
-    loadRecord(recordObject: IRecord): Record;
+    loadPackedRecord(recordObject: IRecord): Record;
+    loadUnpackedRecord(recordObject: IRecord): Record;
     saveRecord(record: IRecord, contract: IContract, update?: boolean, sizeDelta?: number): Promise<void>;
     revRecord(key: string, update: any): Promise<Record>;
     delRecord(record: IRecord, shardId: string): Promise<void>;
@@ -72,11 +73,31 @@ export declare class DataBase implements IDataBase {
     getHosts(key: string, contract: IContract): string[];
 }
 export declare class Record {
-    key: string;
-    value: IValue;
-    constructor(key?: string, value?: IValue);
-    encodeContent(content: any): void;
-    decodeContent(): void;
+    private _key;
+    private _value;
+    private _encoded;
+    private _encrypted;
+    constructor(_key: string, _value: IValue);
+    readonly key: string;
+    readonly value: IValue;
+    readonly encoded: boolean;
+    readonly encrypted: boolean;
+    static createImmutable(content: any, encrypted: boolean, publicKey: string, timestamped?: boolean): Promise<Record>;
+    static createMutable(content: any, encrypted: boolean, publicKey: string): Promise<Record>;
+    static readUnpacked(key: string, value: IValue): Record;
+    static readPacked(key: string, value: IValue): Record;
+    update(update: any, profile: any): Promise<void>;
+    pack(publicKey: string): Promise<void>;
+    unpack(privateKeyObject: any): Promise<void>;
+    getSize(): number;
+    getRecord(): {
+        key: string;
+        value: IValue;
+    };
+    getContent(shardId: string, replicationFactor: number, privateKeyObject: any): Promise<{
+        key: string;
+        value: any;
+    }>;
     createPoR(nodeId: string): string;
     isValidPoR(nodeId: string, proof: string): boolean;
     createPoD(nodeId: string): string;
@@ -89,16 +110,11 @@ export declare class Record {
         valid: boolean;
         reason: string;
     };
-    decrypt(privateKeyObject: any): Promise<void>;
-    getSize(): number;
-    getRecord(): {
-        key: string;
-        value: IValue;
-    };
-    getContent(shardId: string, replicationFactor: number, privateKeyObject: any): Promise<{
-        key: string;
-        value: any;
-    }>;
-    serialize(): void;
-    deserialize(): void;
+    private encodeContent;
+    private decodeContent;
+    private encrypt;
+    private decrypt;
+    private sign;
+    private setContentHash;
+    private setKey;
 }
