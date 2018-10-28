@@ -474,6 +474,8 @@ class Record {
     static read(key, value) {
         // create a new packed record from data received from disk or over the network
         const record = new Record(key, value);
+        record._encoded = true;
+        record._encrypted = true;
         return record;
     }
     // public methods
