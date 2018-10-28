@@ -15,8 +15,6 @@ export declare class DataBase implements IDataBase {
     private tracker?;
     constructor(wallet: any, storage?: any, tracker?: any);
     shards: IShards;
-    createImmutableRecord(content: any, encrypted: boolean, timestamped?: boolean): Promise<Record>;
-    createMutableRecord(content: any, encrypted: boolean): Promise<Record>;
     createRecord(content: any, encrypted: boolean): Promise<Record>;
     getRecord(key: string): Promise<Record>;
     loadRecord(recordObject: IRecord): Record;
@@ -74,11 +72,30 @@ export declare class DataBase implements IDataBase {
     getHosts(key: string, contract: IContract): string[];
 }
 export declare class Record {
-    key: string;
-    value: IValue;
-    constructor(key?: string, value?: IValue);
-    encodeContent(): void;
-    decodeContent(): void;
+    private _key;
+    private _value;
+    private _encoded;
+    private _encrypted;
+    constructor(_key: string, _value: IValue);
+    readonly key: string;
+    readonly value: IValue;
+    readonly encoded: boolean;
+    readonly encrypted: boolean;
+    static createImmutable(content: any, encrypted: boolean, publicKey: string, timestamped?: boolean): Promise<Record>;
+    static createMutable(content: any, encrypted: boolean, publicKey: string): Promise<Record>;
+    static read(key: string, value: IValue): Record;
+    update(update: any, profile: any): Promise<void>;
+    pack(publicKey: string): Promise<void>;
+    unpack(privateKeyObject: any): Promise<void>;
+    getSize(): number;
+    getRecord(): {
+        key: string;
+        value: IValue;
+    };
+    getContent(shardId: string, replicationFactor: number, privateKeyObject: any): Promise<{
+        key: string;
+        value: any;
+    }>;
     createPoR(nodeId: string): string;
     isValidPoR(nodeId: string, proof: string): boolean;
     createPoD(nodeId: string): string;
@@ -91,17 +108,11 @@ export declare class Record {
         valid: boolean;
         reason: string;
     };
-    decrypt(privateKeyObject: any): Promise<void>;
-    setKey(): void;
-    getSize(): number;
-    getRecord(): {
-        key: string;
-        value: IValue;
-    };
-    getContent(shardId: string, replicationFactor: number, privateKeyObject: any): Promise<{
-        key: string;
-        value: any;
-    }>;
-    serialize(): void;
-    deserialize(): void;
+    private encodeContent;
+    private decodeContent;
+    private encrypt;
+    private decrypt;
+    private sign;
+    private setContentHash;
+    private setKey;
 }

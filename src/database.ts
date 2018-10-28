@@ -53,94 +53,16 @@ export class DataBase implements IDataBase {
   // Record CRUD Operations
   // **********************
 
-  public async createImmutableRecord(content: any, encrypted: boolean, timestamped = true) {
-    // create a new immutable record
-
-    const profile = this.wallet.getProfile()
-
-    let symkey: string = null
-    if (encrypted) {
-      symkey = crypto.getRandom()
-    }
-
-    let timestamp: number = null
-    if (timestamped) {
-      timestamp = Date.now()
-    }
-
-    const recordData: IValue = {
-      immutable: true,
-      version: SCHEMA_VERSION,
-      encoding: null,
-      symkey: symkey,
-      content: content,
-      createdAt: timestamp
-    }
-
-    const record = new Record(null, recordData)
-    record.encodeContent()
-
-    if (encrypted) {
-      record.value.content = await crypto.encryptSymmetric(record.value.content, symkey)
-      record.value.symkey = await crypto.encryptAssymetric(symkey, profile.publicKey)
-    }
-
-    record.setKey()
-    return record 
-  }
-
-  public async createMutableRecord(content: any, encrypted: boolean) {
-    // create a new mutable record 
-
-    const profile = this.wallet.getProfile()
-
-    let symkey: string = null
-    if (encrypted) {
-      symkey = crypto.getRandom()
-    }
-
-    const keys = await crypto.generateKeys(MUTABLE_KEY_NAME, MUTABLE_KEY_EMAIL, MUTABLE_KEY_PASSPRHASE)
-    const privateKeyObject = await crypto.getPrivateKeyObject(keys.privateKeyArmored, MUTABLE_KEY_PASSPRHASE)
-
-    const recordData: IValue = {
-      immutable: false,
-      version: SCHEMA_VERSION,
-      encoding: null,
-      symkey: symkey,
-      content: content,
-      createdAt: Date.now(),
-      publicKey: keys.publicKeyArmored,
-      privateKey: keys.privateKeyArmored,
-      contentHash: null,
-      revision: 0,
-      updatedAt: null,
-      recordSig: null
-    }
-    const record = new Record(null, recordData)
-    record.encodeContent()
-
-    if (encrypted) {
-      record.value.content = await crypto.encryptSymmetric(record.value.content, symkey)
-      record.value.symkey = await crypto.encryptAssymetric(symkey, profile.publicKey)
-    }
-
-    record.value.privateKey = await crypto.encryptAssymetric(keys.privateKeyArmored, profile.publicKey)
-    record.value.contentHash = crypto.getHash(record.value.content)
-    record.value.recordSig = await crypto.sign(record.value, privateKeyObject)
-    record.setKey()
-    return record
-  }
-
   public async createRecord(content: any, encrypted: boolean) {
     // creates and saves a new record based on current default contract
-
+    const profile = this.wallet.getProfile()
     const contract = this.wallet.getContract()
 
     let record: Record
     if (contract.ttl) {
-      record = await this.createMutableRecord(content, encrypted)
+      record = await Record.createMutable(content, encrypted, profile.publickey)
     } else {
-      record = await this.createImmutableRecord(content, encrypted)
+      record = await Record.createImmutable(content, encrypted, profile.publicKey)
     }
 
     await this.storage.put(record.key, JSON.stringify(record.value))
@@ -149,14 +71,15 @@ export class DataBase implements IDataBase {
 
   public async getRecord(key: string) {
     // loads and returns an existing record instance on disk from a given key (from short key)
-    const stringRecord = await this.storage.get(key)
-    const record = new Record(key, JSON.parse(stringRecord))
+    const stringValue = await this.storage.get(key)
+    const value = JSON.parse(stringValue)
+    const record = Record.read(key, value)
     return record   
   }
 
   public loadRecord(recordObject: IRecord) {
     // loads and returns an existing record instance from an encoded record received over the network
-    const record = new Record(recordObject.key, recordObject.value)
+    const record = Record.read(recordObject.key, recordObject.value)
     return record
   }
 
@@ -185,23 +108,7 @@ export class DataBase implements IDataBase {
     // loads an existing record instance from key, applies update, and returns instance, called by client
     const profile = this.wallet.getProfile()
     const record = await this.getRecord(key)
-    await record.decrypt(profile.privateKeyObject)
-    record.value.content = update
-    record.encodeContent()
-
-    const privateKeyObject = await crypto.getPrivateKeyObject(record.value.privateKey, MUTABLE_KEY_PASSPRHASE)
-
-    if (record.value.symkey) { // sym encrypt value and asym encrypt sym key
-      record.value.content = await crypto.encryptSymmetric(record.value.content, record.value.symkey)
-      record.value.symkey = await crypto.encryptAssymetric(record.value.symkey, profile.publicKey)
-    } 
-
-    record.value.recordSig = null
-    record.value.contentHash = crypto.getHash(record.value.content)
-    record.value.revision += 1
-    record.value.updatedAt = Date.now()
-    record.value.privateKey = await crypto.encryptAssymetric(record.value.privateKey, profile.publicKey)
-    record.value.recordSig = await crypto.sign(record.value, privateKeyObject)
+    await record.update(update, profile)
     await this.storage.put(record.key, JSON.stringify(record.value))
     return record
   }
@@ -559,77 +466,147 @@ export class DataBase implements IDataBase {
 }
 
 export class Record {
-  constructor (
-    public key: string = null,
-    public value: IValue = null
-  ) {
+  
+  private _encoded = false
+  private _encrypted = false
+  constructor (private _key: string, private _value: IValue) {}
 
+  // getters
+
+  get key() {
+    return this._key
   }
 
-  public encodeContent() {
-    // determine content and encoding and encode content as string
-    const content = this.value.content
-    switch(typeof content) {
-      case('undefined'):
-        throw new Error('Cannot create a record from content: undefined')
-      case('string'):
-        this.value.encoding = 'string'
-        break
-      case('number'):
-        this.value.encoding = 'string'
-        this.value.content = content.toString()
-        break
-      case('boolean'):
-        this.value.encoding = 'string'
-        this.value.content = content.toString()
-        break
-      case('object'):
-        if (!content) { 
-          this.value.encoding = 'null'
-          this.value.content = JSON.stringify(content)
-        } else if (Array.isArray(content)) {
-          this.value.encoding = 'array'
-          this.value.content = JSON.stringify(content)
-        } else if (Buffer.isBuffer(content)) {
-          this.value.encoding = 'buffer'
-          this.value.content = content.toString()
-        } else {
-          this.value.encoding = 'object'
-          this.value.content = JSON.stringify(content)
-        }
-        break
-      default:
-        throw new Error('Cannot create a record from content: unknown type')
-    }     
+  get value() {
+    return this._value
   }
 
-  public decodeContent() {
-    // convert string content back to original type based on encoding
-    switch (this.value.encoding) {
-      case 'null':
-        this.value.content = null
-        break
-      case 'string':
-        // no change
-        break
-      case 'number':
-        this.value.content = Number(this.value.content)
-        break
-      case 'boolean':
-        if (this.value.content === 'true') this.value.content = true
-        else  this.value.content = false
-        break
-      case 'array':
-        this.value.content = JSON.parse(this.value.content)
-        break
-      case 'object':
-        this.value.content = JSON.parse(this.value.content)
-        break
-      case 'buffer':
-        this.value.content = Buffer.from(this.value.content)
-        break
-      default:
-        throw new Error('Unknown encoding, cannot decode')
+  get encoded() {
+    return this._encoded
+  }
+
+  get encrypted() {
+    return this._encrypted
+  }
+
+  // static methods
+
+  static async createImmutable(content: any, encrypted: boolean, publicKey: string, timestamped = true) {
+    // creates and returns a new immutable record instance
+
+    let symkey: string = null
+    if (encrypted) {
+      symkey = crypto.getRandom()
+    }
+
+    let timestamp: number = null
+    if (timestamped) {
+      timestamp = Date.now()
+    }
+
+    const value: IValue = {
+      immutable: true,
+      version: SCHEMA_VERSION,
+      encoding: null,
+      symkey: symkey,
+      content: content,
+      createdAt: timestamp
+    }
+
+    const record = new Record(null, value)
+    await record.pack(publicKey)
+    record.setKey()
+    return record 
+  }
+
+  static async createMutable(content: any, encrypted: boolean, publicKey: string) {
+    // creates and returns a new mutable record instance 
+
+    let symkey: string = null
+    if (encrypted) {
+      symkey = crypto.getRandom()
+    }
+
+    const keys = await crypto.generateKeys(MUTABLE_KEY_NAME, MUTABLE_KEY_EMAIL, MUTABLE_KEY_PASSPRHASE)
+    const privateKeyObject = await crypto.getPrivateKeyObject(keys.privateKeyArmored, MUTABLE_KEY_PASSPRHASE)
+
+    const value: IValue = {
+      immutable: false,
+      version: SCHEMA_VERSION,
+      encoding: null,
+      symkey: symkey,
+      content: content,
+      createdAt: Date.now(),
+      publicKey: keys.publicKeyArmored,
+      privateKey: keys.privateKeyArmored,
+      contentHash: null,
+      revision: 0,
+      updatedAt: null,
+      recordSig: null
+    }
+
+    const record = new Record(null, value)
+    await record.pack(publicKey)
+    record.setContentHash()
+    await record.sign(privateKeyObject)
+    record.setKey()
+    return record
+  }
+
+  static read(key: string, value: IValue) {
+    // create a new packed record from data received from disk or over the network
+    const record = new Record(key, value)
+    return record
+  }
+
+  // public methods
+
+  public async update(update: any, profile: any) {
+    // update an existing record stored on disk
+
+    if (this._value.immutable) {
+      throw new Error('Cannot update an immutable record')
+    }
+
+    await this.unpack(profile.privateKeyObject) 
+    this._value.content = update
+    const privateKeyObject = await crypto.getPrivateKeyObject(this._value.privateKey, MUTABLE_KEY_PASSPRHASE)
+    await this.pack(profile.publicKey)
+    this.setContentHash()
+    this._value.revision += 1
+    this._value.updatedAt = Date.now()
+    await this.sign(privateKeyObject)
+  }
+
+  public async pack(publicKey: string) {
+    this.encodeContent()
+    await this.encrypt(publicKey)
+  }
+
+  public async unpack(privateKeyObject: any) {
+    await this.decrypt(privateKeyObject)
+    this.decodeContent()
+  }
+
+  public getSize() {
+    return Buffer.from(JSON.stringify(this.getRecord())).byteLength
+  }
+
+  public getRecord() {
+    // returns the encrypted, encoded record object
+    return {
+      key: this._key,
+      value: this._value
+    }
+  }
+
+  public async getContent(shardId: string, replicationFactor: number, privateKeyObject: any) {
+    // returns the key and decrypted, decoded content
+    await this.decrypt(privateKeyObject)
+    this.decodeContent()
+    return {
+      key: `${this._key}:${shardId}:${replicationFactor}`,
+      value: this._value.content
     }
   } 
 
@@ -648,13 +625,12 @@ export class Record {
 
   public createPoD(nodeId: string) {
     // creates a mock Proof of Deletion for a record from this node
-    return crypto.getHash(JSON.stringify(this) + nodeId)
+    return crypto.getHash(JSON.stringify(this.getRecord()) + nodeId)
   }
 
   public isValidPoD(nodeId: string, proof: string) {
     // validates a Proof of Deletion from another node
-    return proof === this.createPoD(nodeId)
-    
+    return proof === this.createPoD(nodeId)  
   }
 
   public async isValid(sender?: string) {
@@ -670,13 +646,13 @@ export class Record {
     // ***************** 
 
     // has valid encoding 
-    if (! VALID_ENCODING.includes(this.value.encoding)) {
+    if (! VALID_ENCODING.includes(this._value.encoding)) {
       test.reason = 'Invalid encoding format'
       return test
     }
 
     // has valid version
-    if (this.value.version < 0) {
+    if (this._value.version < 0) {
       test.reason = 'Invalid schema version'
       return test
     }
@@ -686,9 +662,9 @@ export class Record {
     // Immutable Properties
     // ********************
 
-    if (this.value.immutable) {
+    if (this._value.immutable) {
       // is valid hash
-      const validHash = crypto.isValidHash(this.key, JSON.stringify(this.value))
+      const validHash = crypto.isValidHash(this.key, JSON.stringify(this._value))
       if (!validHash) {
         test.reason = 'Immutable record hash does not match value'
         return test
@@ -699,25 +675,25 @@ export class Record {
     // Mutable Properties
     // ******************
 
-    if (!this.value.immutable) {
+    if (!this._value.immutable) {
 
       // timestamp is no more than 10 minutes in the future
-      if (this.value.createdAt > (Date.now() + 60000)) {
+      if (this._value.createdAt > (Date.now() + 60000)) {
         test.reason = 'Invalid record timestamp, greater than 10 minutes ahead'
         return test
       }
 
       // does the encrypted content value match the hash?
-      const validHash = crypto.isValidHash(this.value.contentHash, JSON.stringify(this.value.content))
+      const validHash = crypto.isValidHash(this._value.contentHash, JSON.stringify(this._value.content))
       if (!validHash) {
         test.reason = 'Mutable record content hash does not match content value'
         return test
       }
 
       // does the record signature match the record public key
-      let unsignedValue = { ...this.value }
+      let unsignedValue = { ...this._value }
       unsignedValue.recordSig = null
-      const validSignature = await crypto.isValidSignature(unsignedValue, this.value.recordSig, this.value.publicKey)
+      const validSignature = await crypto.isValidSignature(unsignedValue, this._value.recordSig, this._value.publicKey)
 
       if (!validSignature) {
         test.reason = 'Invalid mutable record signature'
@@ -782,62 +758,144 @@ export class Record {
     return test
   }
 
-  public async decrypt(privateKeyObject: any) {
-    if (this.value.symkey) { // is an encrypted record
+  // private methods
+
+  private encodeContent() {
+    // determine content and encoding and encode content as string
+
+    if (this._encoded) {
+      throw new Error ('Cannot encode content, it is already encoded')
+    }
+
+    const content = this._value.content
+    switch(typeof content) {
+      case('undefined'):
+        throw new Error('Cannot create a record from content: undefined')
+      case('string'):
+        this._value.encoding = 'string'
+        break
+      case('number'):
+        this._value.encoding = 'string'
+        this._value.content = content.toString()
+        break
+      case('boolean'):
+        this._value.encoding = 'string'
+        this._value.content = content.toString()
+        break
+      case('object'):
+        if (!content) { 
+          this._value.encoding = 'null'
+          this._value.content = JSON.stringify(content)
+        } else if (Array.isArray(content)) {
+          this._value.encoding = 'array'
+          this._value.content = JSON.stringify(content)
+        } else if (Buffer.isBuffer(content)) {
+          this._value.encoding = 'buffer'
+          this._value.content = content.toString()
+        } else {
+          this._value.encoding = 'object'
+          this._value.content = JSON.stringify(content)
+        }
+        break
+      default:
+        throw new Error('Cannot create a record from content: unknown type')
+    }  
+    this._encoded = true   
+  }
+
+  private decodeContent() {
+
+    if (!this._encoded) {
+      throw new Error ('Cannot decode content, it is already decoded')
+    }
+
+    // convert string content back to original type based on encoding
+    switch (this._value.encoding) {
+      case 'null':
+        this._value.content = null
+        break
+      case 'string':
+        // no change
+        break
+      case 'number':
+        this._value.content = Number(this._value.content)
+        break
+      case 'boolean':
+        if (this._value.content === 'true') this._value.content = true
+        else  this._value.content = false
+        break
+      case 'array':
+        this._value.content = JSON.parse(this._value.content)
+        break
+      case 'object':
+        this._value.content = JSON.parse(this._value.content)
+        break
+      case 'buffer':
+        this._value.content = Buffer.from(this._value.content)
+        break
+      default:
+        throw new Error('Unknown encoding, cannot decode')
+    }
+
+    this._encoded = false
+  } 
+
+  private async encrypt(publicKey: string, privateKey?: string) {
+
+    if (this._encrypted) {
+      throw new Error('Cannot encrypt record, it is already encrypted')
+    }
+
+    if (this._value.symkey) {
+      // sym encrypt the content with sym key
+      this._value.content = await crypto.encryptSymmetric(this._value.content, this._value.symkey)
+      // asym encyrpt the sym key with node public key
+      this._value.symkey = await crypto.encryptAssymetric(this._value.symkey, publicKey)
+      this._encrypted = true
+    }
+    
+    if (!this._value.immutable) {
+      // asym encrypt the private record signing key with node public key
+      this._value.privateKey = await crypto.encryptAssymetric(privateKey, publicKey)
+      this._encrypted = true
+    }
+  }
+
+  private async decrypt(privateKeyObject: any) {
+
+    if (!this._encrypted) {
+      throw new Error('Cannot decrypt record, it is already decrypted')
+    }
+
+    if (this._value.symkey) { // is an encrypted record
       // asym decrypt the symkey with node private key
-      this.value.symkey = await crypto.decryptAssymetric(this.value.symkey, privateKeyObject)
+      this._value.symkey = await crypto.decryptAssymetric(this._value.symkey, privateKeyObject)
       // sym decrypt the content with symkey 
-      this.value.content = await crypto.decryptSymmetric(this.value.content, this.value.symkey)
+      this._value.content = await crypto.decryptSymmetric(this._value.content, this._value.symkey)
+      this._encrypted = false
     }
 
-    if (!this.value.immutable) {
+    if (!this._value.immutable) {
       // asym decyprt the record private key with node private key
-      this.value.privateKey = await crypto.decryptAssymetric(this.value.privateKey, privateKeyObject)
+      this._value.privateKey = await crypto.decryptAssymetric(this._value.privateKey, privateKeyObject)
+      this._encrypted = false
     }
   }
 
-  setKey() {
-    if (this.value.immutable) {
-      this.key = crypto.getHash(JSON.stringify(this.value))
+  private async sign(privateKeyObject: any) {
+    this._value.recordSig = null
+    this._value.recordSig = await crypto.sign(this._value, privateKeyObject)
+  }
+
+  private setContentHash() {
+    this._value.contentHash = crypto.getHash(this._value.content)
+  }
+
+  private setKey() {
+    if (this._value.immutable) {
+      this._key = crypto.getHash(JSON.stringify(this._value))
     } else {
-      this.key = crypto.getHash(this.value.publicKey)
+      this._key = crypto.getHash(this._value.publicKey)
     }
   }
-
-  public getSize() {
-    const record = {
-      key: this.key,
-      value: this.value
-    }
-    return Buffer.from(JSON.stringify(record)).byteLength
-  }
-
-  public getRecord() {
-    // returns the encrypted, encoded record object
-    return {
-      key: this.key,
-      value: this.value
-    }
-  }
-
-  public async getContent(shardId: string, replicationFactor: number, privateKeyObject: any) {
-    // returns the key and decrypted, decoded content
-    await this.decrypt(privateKeyObject)
-    this.decodeContent()
-    return {
-      key: `${this.key}:${shardId}:${replicationFactor}`,
-      value: this.value.content
-    }
-  }
-
-  // later
-
-  public serialize() {
-    // later, convert json object so streamlined binary based on encoding version
-  }
-
-  public deserialize() {
-    // later, conver binary data back to json object based on encoding version
-  }
- 
 }
