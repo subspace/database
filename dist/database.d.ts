@@ -17,7 +17,8 @@ export declare class DataBase implements IDataBase {
     shards: IShards;
     createRecord(content: any, encrypted: boolean): Promise<Record>;
     getRecord(key: string): Promise<Record>;
-    loadRecord(recordObject: IRecord): Record;
+    loadPackedRecord(recordObject: IRecord): Record;
+    loadUnpackedRecord(recordObject: IRecord): Record;
     saveRecord(record: IRecord, contract: IContract, update?: boolean, sizeDelta?: number): Promise<void>;
     revRecord(key: string, update: any): Promise<Record>;
     delRecord(record: IRecord, shardId: string): Promise<void>;
@@ -83,7 +84,8 @@ export declare class Record {
     readonly encrypted: boolean;
     static createImmutable(content: any, encrypted: boolean, publicKey: string, timestamped?: boolean): Promise<Record>;
     static createMutable(content: any, encrypted: boolean, publicKey: string): Promise<Record>;
-    static read(key: string, value: IValue): Record;
+    static readUnpacked(key: string, value: IValue): Record;
+    static readPacked(key: string, value: IValue): Record;
     update(update: any, profile: any): Promise<void>;
     pack(publicKey: string): Promise<void>;
     unpack(privateKeyObject: any): Promise<void>;

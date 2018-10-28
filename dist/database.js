@@ -68,12 +68,17 @@ class DataBase {
         // loads and returns an existing record instance on disk from a given key (from short key)
         const stringValue = await this.storage.get(key);
         const value = JSON.parse(stringValue);
-        const record = Record.read(key, value);
+        const record = Record.readPacked(key, value);
         return record;
     }
-    loadRecord(recordObject) {
-        // loads and returns an existing record instance from an encoded record received over the network
-        const record = Record.read(recordObject.key, recordObject.value);
+    loadPackedRecord(recordObject) {
+        // loads and returns an existing record instance from a packed record received over the network
+        const record = Record.readPacked(recordObject.key, recordObject.value);
+        return record;
+    }
+    loadUnpackedRecord(recordObject) {
+        // loads and returns an existing record instance from an upacked record received over the network
+        const record = Record.readUnpacked(recordObject.key, recordObject.value);
         return record;
     }
     async saveRecord(record, contract, update, sizeDelta) {
@@ -471,7 +476,14 @@ class Record {
         record.setKey();
         return record;
     }
-    static read(key, value) {
+    static readUnpacked(key, value) {
+        // create a new unpacked record from data from disk or over the network
+        const record = new Record(key, value);
+        record._encoded = false;
+        record._encrypted = false;
+        return record;
+    }
+    static readPacked(key, value) {
         // create a new packed record from data received from disk or over the network
         const record = new Record(key, value);
         record._encoded = true;

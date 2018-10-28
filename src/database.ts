@@ -64,7 +64,6 @@ export class DataBase implements IDataBase {
     } else {
       record = await Record.createImmutable(content, encrypted, profile.publicKey)
     }
-
     await this.storage.put(record.key, JSON.stringify(record.value))
     return record
   }
@@ -73,13 +72,19 @@ export class DataBase implements IDataBase {
     // loads and returns an existing record instance on disk from a given key (from short key)
     const stringValue = await this.storage.get(key)
     const value = JSON.parse(stringValue)
-    const record = Record.read(key, value)
+    const record = Record.readPacked(key, value)
     return record   
   }
 
-  public loadRecord(recordObject: IRecord) {
-    // loads and returns an existing record instance from an encoded record received over the network
-    const record = Record.read(recordObject.key, recordObject.value)
+  public loadPackedRecord(recordObject: IRecord) {
+    // loads and returns an existing record instance from a packed record received over the network
+    const record = Record.readPacked(recordObject.key, recordObject.value)
+    return record
+  }
+
+  public loadUnpackedRecord(recordObject: IRecord) {
+    // loads and returns an existing record instance from an upacked record received over the network
+    const record = Record.readUnpacked(recordObject.key, recordObject.value)
     return record
   }
 
@@ -553,7 +558,15 @@ export class Record {
     return record
   }
 
-  static read(key: string, value: IValue) {
+  static readUnpacked(key: string, value: IValue) {
+    // create a new unpacked record from data from disk or over the network
+    const record = new Record(key, value)
+    record._encoded = false
+    record._encrypted = false
+    return record
+  }
+
+  static readPacked(key: string, value: IValue) {
     // create a new packed record from data received from disk or over the network
     const record = new Record(key, value)
     record._encoded = true
