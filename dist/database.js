@@ -214,6 +214,13 @@ class DataBase {
         test.valid = true;
         return test;
     }
+    async isValidMutableContractRequest(txRecord, contractRecord) {
+        // check that the signature in the tx matches the contract record public key 
+        const message = contractRecord.value.publicKey;
+        const signature = txRecord.value.content.contractSig;
+        const publicKey = contractRecord.value.publicKey;
+        return await crypto.isValidSignature(message, signature, publicKey);
+    }
     isValidGetRequest(record, shardId, replicationFactor) {
         const test = {
             valid: false,

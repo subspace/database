@@ -246,6 +246,14 @@ export class DataBase implements IDataBase {
     return test
   }
 
+  public async isValidMutableContractRequest(txRecord: Record, contractRecord: Record) {
+    // check that the signature in the tx matches the contract record public key 
+    const message = contractRecord.value.publicKey
+    const signature = txRecord.value.content.contractSig
+    const publicKey = contractRecord.value.publicKey
+    return await crypto.isValidSignature(message, signature, publicKey)
+  }
+
   public isValidGetRequest(record: IRecord, shardId: string, replicationFactor: number) {
     const test = {
       valid: false,

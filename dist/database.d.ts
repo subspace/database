@@ -39,6 +39,7 @@ export declare class DataBase implements IDataBase {
         valid: boolean;
         reason: string;
     }>;
+    isValidMutableContractRequest(txRecord: Record, contractRecord: Record): Promise<boolean>;
     isValidGetRequest(record: IRecord, shardId: string, replicationFactor: number): {
         valid: boolean;
         reason: string;
