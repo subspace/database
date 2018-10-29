@@ -165,7 +165,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public async isValidContractOp(record: Record, contract: IContract, shardMap: any, request: IRequest, sizeDelta?: number) {
+  public async isValidContractOp(record: Record, contract: IContract, shardMap: any, request: any, sizeDelta?: number) {
 
     const test = {
       valid: false,
@@ -220,7 +220,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public async isValidPutRequest(record: Record, contract: IContract, request: IRequest) {
+  public async isValidPutRequest(record: Record, contract: IContract, request: any) {
     // is this a valid put request message?
 
     const test = {
@@ -246,13 +246,13 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public isValidGetRequest(record: IRecord, contract: IContract, shardId: string) {
+  public isValidGetRequest(record: IRecord, shardId: string, replicationFactor: number) {
     const test = {
       valid: false,
       reason: <string> null
     }
 
-    const shardMap = this.getShardAndHostsForKey(record.key, contract)
+    const shardMap = this.computeHostsforShards([shardId], replicationFactor)[0]
 
     // is this the right shard for request?
     if (shardMap.id !== shardId) {
@@ -270,7 +270,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public async isValidRevRequest(oldRecord: Record, newRecord: Record, contract: IContract, shardId: string, request: IRequest) {
+  public async isValidRevRequest(oldRecord: Record, newRecord: Record, contract: IContract, shardId: string, request: any) {
     const test = {
       valid: false,
       reason: <string> null,
@@ -308,7 +308,7 @@ export class DataBase implements IDataBase {
     return test
   }
 
-  public async isValidDelRequest(record: Record, contract: IContract, shardId: string, request: IRequest) {
+  public async isValidDelRequest(record: Record, contract: IContract, shardId: string, request: any) {
     const test = {
       valid: false,
       reason: <string> null
@@ -414,7 +414,7 @@ export class DataBase implements IDataBase {
     return shards
   }
 
-  public computeShardForKey(key: string, spaceReserved: number): number {
+  public computeShardForKey(key: string, spaceReserved: number) {
     // returns the correct shard number for a record given a key and a contract size
     // uses jump consistent hashing
     const hash = crypto.getHash64(key)

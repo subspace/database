@@ -214,12 +214,12 @@ class DataBase {
         test.valid = true;
         return test;
     }
-    isValidGetRequest(record, contract, shardId) {
+    isValidGetRequest(record, shardId, replicationFactor) {
         const test = {
             valid: false,
             reason: null
         };
-        const shardMap = this.getShardAndHostsForKey(record.key, contract);
+        const shardMap = this.computeHostsforShards([shardId], replicationFactor)[0];
         // is this the right shard for request?
         if (shardMap.id !== shardId) {
             test.reason = 'Invalid get request, shard ids do not match';

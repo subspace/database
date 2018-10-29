@@ -1,4 +1,4 @@
-import { IDataBase, IRecord, IValue, IContract, IShards, IRequest } from './interfaces';
+import { IDataBase, IRecord, IValue, IContract, IShards } from './interfaces';
 import { Destination } from '@subspace/rendezvous-hash';
 export { IRecord, IValue };
 /**
@@ -31,23 +31,23 @@ export declare class DataBase implements IDataBase {
         valid: boolean;
         reason: string;
     };
-    isValidContractOp(record: Record, contract: IContract, shardMap: any, request: IRequest, sizeDelta?: number): Promise<{
+    isValidContractOp(record: Record, contract: IContract, shardMap: any, request: any, sizeDelta?: number): Promise<{
         valid: boolean;
         reason: string;
     }>;
-    isValidPutRequest(record: Record, contract: IContract, request: IRequest): Promise<{
+    isValidPutRequest(record: Record, contract: IContract, request: any): Promise<{
         valid: boolean;
         reason: string;
     }>;
-    isValidGetRequest(record: IRecord, contract: IContract, shardId: string): {
+    isValidGetRequest(record: IRecord, shardId: string, replicationFactor: number): {
         valid: boolean;
         reason: string;
     };
-    isValidRevRequest(oldRecord: Record, newRecord: Record, contract: IContract, shardId: string, request: IRequest): Promise<{
+    isValidRevRequest(oldRecord: Record, newRecord: Record, contract: IContract, shardId: string, request: any): Promise<{
         valid: boolean;
         reason: string;
     }>;
-    isValidDelRequest(record: Record, contract: IContract, shardId: string, request: IRequest): Promise<{
+    isValidDelRequest(record: Record, contract: IContract, shardId: string, request: any): Promise<{
         valid: boolean;
         reason: string;
     }>;
