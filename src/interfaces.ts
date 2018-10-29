@@ -39,22 +39,14 @@ export interface IValue {
   recordSig?: string     // signature with record private key
 }
 
+
 export interface IContract {
   id: string
-  owner: string
-  name: string
-  email: string
-  passphrase: string
-  ttl: number
-  replicationFactor: number
-  spaceReserved: number
-  spaceUsed: number
   createdAt: number
-  updatedAt: number
-  recordIndex: Set<string>
-  publicKey: string
-  privateKey: string
-  privateKeyObject: any
+  spaceReserved: number
+  replicationFactor: number
+  ttl: number
+  contractSig: string
 }
 
 export interface IRequest {
