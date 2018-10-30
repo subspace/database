@@ -81,6 +81,8 @@ class DataBase {
         const record = Record.readUnpacked(recordObject.key, recordObject.value);
         return record;
     }
+    // need a simple save 
+    // need a simple delete 
     async saveRecord(record, contract, update, sizeDelta) {
         // saves an encrypted, encoded record to disk locally, as a host
         const shardId = this.getShardForKey(record.key, contract);

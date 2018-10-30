@@ -1,7 +1,4 @@
-export interface IDataBase {
-    shards: IShards;
-}
-export interface IShards {
+export interface IShardMap {
     map: Map<string, IShard>;
     save(): void;
     load(): void;

@@ -1,4 +1,4 @@
-import {IDataBase, IRecord, IValue, IContract, IShards, IRequest} from './interfaces'
+import {IRecord, IValue, IContract, IShardMap} from './interfaces'
 import * as crypto from '@subspace/crypto'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
@@ -24,7 +24,7 @@ export const SHARD_SIZE = 100000000;
 export const PLEDGE_SIZE = SHARD_SIZE * 100;
 
 
-export class DataBase implements IDataBase {
+export class DataBase {
   
   constructor(
     private wallet: any,
@@ -34,7 +34,7 @@ export class DataBase implements IDataBase {
     this.shards.load()
   }
 
-  shards: IShards = {
+  shards: IShardMap = {
     map: null,
     save: async () => {
       await this.storage.put('shards', JSON.stringify([...this.shards.map]))
@@ -87,6 +87,10 @@ export class DataBase implements IDataBase {
     const record = Record.readUnpacked(recordObject.key, recordObject.value)
     return record
   }
+
+  // need a simple save 
+
+  // need a simple delete 
 
   public async saveRecord(record: Record, contract: IContract, update?: boolean, sizeDelta?: number) {
     // saves an encrypted, encoded record to disk locally, as a host

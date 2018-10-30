@@ -1,4 +1,4 @@
-import { IDataBase, IRecord, IValue, IContract, IShards } from './interfaces';
+import { IRecord, IValue, IContract, IShardMap } from './interfaces';
 import { Destination } from '@subspace/rendezvous-hash';
 export { IRecord, IValue };
 /**
@@ -9,12 +9,12 @@ export declare const SHARD_SIZE = 100000000;
  * Pledge size in bytes (100 shards or 10G)
  */
 export declare const PLEDGE_SIZE: number;
-export declare class DataBase implements IDataBase {
+export declare class DataBase {
     private wallet;
     private storage?;
     private tracker?;
     constructor(wallet: any, storage?: any, tracker?: any);
-    shards: IShards;
+    shards: IShardMap;
     createRecord(content: any, encrypted: boolean): Promise<Record>;
     getRecord(key: string): Promise<Record>;
     loadPackedRecord(recordObject: IRecord): Record;
