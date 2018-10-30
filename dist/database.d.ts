@@ -57,10 +57,10 @@ export declare class DataBase {
         size: number;
         records: Set<any>;
     }>;
-    getShard(shardId: string): import("src/interfaces").IShard;
+    getShard(shardId: string): import("interfaces").IShard;
     delShard(shardId: string): Promise<void>;
     putRecordInShard(shardId: string, record: Record): Promise<void>;
-    revRecordInShard(shardId: string, sizeDelta: number): Promise<import("src/interfaces").IShard>;
+    revRecordInShard(shardId: string, sizeDelta: number): Promise<import("interfaces").IShard>;
     delRecordInShard(shardId: string, record: Record): Promise<void>;
     computeShardArray(contract: IContract): string[];
     computeShardForKey(key: string, spaceReserved: number): number;
