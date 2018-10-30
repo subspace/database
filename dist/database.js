@@ -31,7 +31,7 @@ class DataBase {
         this.storage = storage;
         this.tracker = tracker;
         this.shards = {
-            map: null,
+            map: new Map(),
             save: async () => {
                 await this.storage.put('shards', JSON.stringify([...this.shards.map]));
             },

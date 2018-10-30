@@ -1,4 +1,4 @@
-import { IRecord, IValue, IContract, IShardMap } from './interfaces';
+import { IRecord, IValue, IContract, IShard } from './interfaces';
 import { Destination } from '@subspace/rendezvous-hash';
 export { IRecord, IValue };
 /**
@@ -14,7 +14,11 @@ export declare class DataBase {
     private storage?;
     private tracker?;
     constructor(wallet: any, storage?: any, tracker?: any);
-    shards: IShardMap;
+    shards: {
+        map: Map<string, IShard>;
+        save: () => Promise<void>;
+        load: () => Promise<void>;
+    };
     createRecord(content: any, encrypted: boolean): Promise<Record>;
     getRecord(key: string): Promise<Record>;
     loadPackedRecord(recordObject: IRecord): Record;
@@ -57,10 +61,10 @@ export declare class DataBase {
         size: number;
         records: Set<any>;
     }>;
-    getShard(shardId: string): import("interfaces").IShard;
+    getShard(shardId: string): IShard;
     delShard(shardId: string): Promise<void>;
     putRecordInShard(shardId: string, record: Record): Promise<void>;
-    revRecordInShard(shardId: string, sizeDelta: number): Promise<import("interfaces").IShard>;
+    revRecordInShard(shardId: string, sizeDelta: number): Promise<IShard>;
     delRecordInShard(shardId: string, record: Record): Promise<void>;
     computeShardArray(contract: IContract): string[];
     computeShardForKey(key: string, spaceReserved: number): number;

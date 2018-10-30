@@ -1,4 +1,4 @@
-import {IRecord, IValue, IContract, IShardMap} from './interfaces'
+import {IRecord, IValue, IContract, IShard} from './interfaces'
 import * as crypto from '@subspace/crypto'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
@@ -34,8 +34,8 @@ export class DataBase {
     this.shards.load()
   }
 
-  shards: IShardMap = {
-    map: null,
+  shards = {
+    map: <Map<string, IShard>> new Map(),
     save: async () => {
       await this.storage.put('shards', JSON.stringify([...this.shards.map]))
     }, 

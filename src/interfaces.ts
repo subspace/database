@@ -1,9 +1,3 @@
-export interface IShardMap {
-  map: Map<string, IShard>,
-  save(): void
-  load(): void
-}
-
 export interface IShard {
   contract: string
   size: number
