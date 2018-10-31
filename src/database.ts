@@ -411,11 +411,11 @@ export class DataBase {
   // Shard <-> Key <-> Host mapping methods
   // **************************************
 
-  public computeShardArray(contract: IContract) {
+  public computeShardArray(contractId: string, spaceReserved: number) {
     // returns an array of shardIds for a contract
-    let hash = contract.id
+    let hash = contractId
     let shards: string[] = []
-    const numberOfShards = contract.spaceReserved / SHARD_SIZE
+    const numberOfShards = spaceReserved / SHARD_SIZE
     if (numberOfShards % 1) {
       throw new Error('Incorrect contract size')
     }
@@ -440,6 +440,7 @@ export class DataBase {
   public getDestinations(): Destination[] {
     return this.tracker
       .getEntries()
+      .filter((entry: any) => entry.status === true )
       .map((entry: any) => {
         return new Destination(
           crypto.getHash64(entry.hash),
@@ -464,7 +465,7 @@ export class DataBase {
 
   public getShardAndHostsForKey(key: string, contract: IContract) {
     // return the correct hosts for a given key
-    const shards = this.computeShardArray(contract)
+    const shards = this.computeShardArray(contract.id, contract.spaceReserved)
     const shardIndex = this.computeShardForKey(key, contract.spaceReserved)
     const shard = shards[shardIndex]
     const shardMaps = this.computeHostsforShards(shards, contract.replicationFactor)
@@ -472,7 +473,7 @@ export class DataBase {
   }
 
   public getShardForKey(key: string, contract: IContract) {
-    const shards = this.computeShardArray(contract)
+    const shards = this.computeShardArray(contract.id, contract.spaceReserved)
     const shardIndex = this.computeShardForKey(key, contract.spaceReserved)
     return shards[shardIndex]
   }
@@ -480,6 +481,12 @@ export class DataBase {
   public getHosts(key: string, contract: IContract) {
     return this.getShardAndHostsForKey(key, contract).hosts
   }
+
+  // public getContra
+
+  // public getShardsForHost() {
+
+  // }
 }
 
 export class Record {

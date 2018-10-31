@@ -350,11 +350,11 @@ class DataBase {
     // **************************************
     // Shard <-> Key <-> Host mapping methods
     // **************************************
-    computeShardArray(contract) {
+    computeShardArray(contractId, spaceReserved) {
         // returns an array of shardIds for a contract
-        let hash = contract.id;
+        let hash = contractId;
         let shards = [];
-        const numberOfShards = contract.spaceReserved / exports.SHARD_SIZE;
+        const numberOfShards = spaceReserved / exports.SHARD_SIZE;
         if (numberOfShards % 1) {
             throw new Error('Incorrect contract size');
         }
@@ -377,6 +377,7 @@ class DataBase {
     getDestinations() {
         return this.tracker
             .getEntries()
+            .filter((entry) => entry.status === true)
             .map((entry) => {
             return new rendezvous_hash_1.Destination(crypto.getHash64(entry.hash), entry.pledge / exports.PLEDGE_SIZE);
         });
@@ -396,14 +397,14 @@ class DataBase {
     }
     getShardAndHostsForKey(key, contract) {
         // return the correct hosts for a given key
-        const shards = this.computeShardArray(contract);
+        const shards = this.computeShardArray(contract.id, contract.spaceReserved);
         const shardIndex = this.computeShardForKey(key, contract.spaceReserved);
         const shard = shards[shardIndex];
         const shardMaps = this.computeHostsforShards(shards, contract.replicationFactor);
         return shardMaps.filter(shardMap => shardMap.id === shard)[0];
     }
     getShardForKey(key, contract) {
-        const shards = this.computeShardArray(contract);
+        const shards = this.computeShardArray(contract.id, contract.spaceReserved);
         const shardIndex = this.computeShardForKey(key, contract.spaceReserved);
         return shards[shardIndex];
     }

@@ -66,7 +66,7 @@ export declare class DataBase {
     putRecordInShard(shardId: string, record: Record): Promise<void>;
     revRecordInShard(shardId: string, sizeDelta: number): Promise<IShard>;
     delRecordInShard(shardId: string, record: Record): Promise<void>;
-    computeShardArray(contract: IContract): string[];
+    computeShardArray(contractId: string, spaceReserved: number): string[];
     computeShardForKey(key: string, spaceReserved: number): number;
     getDestinations(): Destination[];
     computeHostsforShards(shardIds: string[], replicationFactor: number): {
