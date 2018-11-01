@@ -883,19 +883,21 @@ export class Record {
       throw new Error('Cannot encrypt record, it is already encrypted')
     }
 
+    
     if (this._value.symkey) {
       // sym encrypt the content with sym key
       this._value.content = await crypto.encryptSymmetric(this._value.content, this._value.symkey)
       // asym encyrpt the sym key with node public key
       this._value.symkey = await crypto.encryptAssymetric(this._value.symkey, publicKey)
-      this._encrypted = true
+      
     }
     
     if (!this._value.immutable) {
       // asym encrypt the private record signing key with node public key
       this._value.privateKey = await crypto.encryptAssymetric(privateKey, publicKey)
-      this._encrypted = true
     }
+
+    this._encrypted = true
   }
 
   private async decrypt(privateKeyObject: any) {
@@ -909,14 +911,14 @@ export class Record {
       this._value.symkey = await crypto.decryptAssymetric(this._value.symkey, privateKeyObject)
       // sym decrypt the content with symkey 
       this._value.content = await crypto.decryptSymmetric(this._value.content, this._value.symkey)
-      this._encrypted = false
     }
 
     if (!this._value.immutable) {
       // asym decyprt the record private key with node private key
       this._value.privateKey = await crypto.decryptAssymetric(this._value.privateKey, privateKeyObject)
-      this._encrypted = false
     }
+
+    this._encrypted = false
   }
 
   private async sign(privateKeyObject: any) {

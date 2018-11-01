@@ -750,13 +750,12 @@ class Record {
             this._value.content = await crypto.encryptSymmetric(this._value.content, this._value.symkey);
             // asym encyrpt the sym key with node public key
             this._value.symkey = await crypto.encryptAssymetric(this._value.symkey, publicKey);
-            this._encrypted = true;
         }
         if (!this._value.immutable) {
             // asym encrypt the private record signing key with node public key
             this._value.privateKey = await crypto.encryptAssymetric(privateKey, publicKey);
-            this._encrypted = true;
         }
+        this._encrypted = true;
     }
     async decrypt(privateKeyObject) {
         if (!this._encrypted) {
@@ -767,13 +766,12 @@ class Record {
             this._value.symkey = await crypto.decryptAssymetric(this._value.symkey, privateKeyObject);
             // sym decrypt the content with symkey 
             this._value.content = await crypto.decryptSymmetric(this._value.content, this._value.symkey);
-            this._encrypted = false;
         }
         if (!this._value.immutable) {
             // asym decyprt the record private key with node private key
             this._value.privateKey = await crypto.decryptAssymetric(this._value.privateKey, privateKeyObject);
-            this._encrypted = false;
         }
+        this._encrypted = false;
     }
     async sign(privateKeyObject) {
         this._value.recordSig = null;
