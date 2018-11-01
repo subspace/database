@@ -493,7 +493,10 @@ export class Record {
   
   private _encoded = false
   private _encrypted = false
-  constructor (private _key: string, private _value: IValue) {}
+  constructor (private _key: string, private _value: IValue) {
+    this._key = _key
+    this._value = _value
+  }
 
   // getters
 

@@ -419,6 +419,8 @@ class Record {
         this._value = _value;
         this._encoded = false;
         this._encrypted = false;
+        this._key = _key;
+        this._value = _value;
     }
     // getters
     get key() {
