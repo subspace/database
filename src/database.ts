@@ -108,7 +108,7 @@ export class DataBase {
       shard.size += record.getSize()
     }
     
-    this.shards.map.set(shardId, shard)
+    this.shards.map.set(shardId, {...shard})
     await this.shards.save()
     await this.storage.put(record.key, JSON.stringify(record.value))
   }
@@ -366,13 +366,13 @@ export class DataBase {
       size: 0,
       records: new Set()
     }
-    this.shards.map.set(shardId, shard)
+    this.shards.map.set(shardId, {...shard})
     await this.shards.save()
     return shard
   }
 
   public getShard(shardId: string) {
-    return this.shards.map.get(shardId)
+    return {...this.shards.map.get(shardId)}
   }
 
   public async delShard(shardId: string) {
@@ -389,7 +389,7 @@ export class DataBase {
     const shard = this.shards.map.get(shardId)
     shard.size += record.getSize()
     shard.records.add(record.key)
-    this.shards.map.set(shardId, shard)
+    this.shards.map.set(shardId, {...shard})
     await this.shards.save()
   }
 

@@ -97,7 +97,7 @@ class DataBase {
             shard.records.add(record.key);
             shard.size += record.getSize();
         }
-        this.shards.map.set(shardId, shard);
+        this.shards.map.set(shardId, Object.assign({}, shard));
         await this.shards.save();
         await this.storage.put(record.key, JSON.stringify(record.value));
     }
@@ -312,12 +312,12 @@ class DataBase {
             size: 0,
             records: new Set()
         };
-        this.shards.map.set(shardId, shard);
+        this.shards.map.set(shardId, Object.assign({}, shard));
         await this.shards.save();
         return shard;
     }
     getShard(shardId) {
-        return this.shards.map.get(shardId);
+        return Object.assign({}, this.shards.map.get(shardId));
     }
     async delShard(shardId) {
         const shard = this.getShard(shardId);
@@ -332,7 +332,7 @@ class DataBase {
         const shard = this.shards.map.get(shardId);
         shard.size += record.getSize();
         shard.records.add(record.key);
-        this.shards.map.set(shardId, shard);
+        this.shards.map.set(shardId, Object.assign({}, shard));
         await this.shards.save();
     }
     async revRecordInShard(shardId, sizeDelta) {
