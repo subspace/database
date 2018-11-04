@@ -18,5 +18,9 @@
     "@subspace/jump-consistent-hash": "github:subspace/jump-consistent-hash",
     "@subspace/rendezvous-hash": "github:subspace/rendezvous-hash",
     "xxhashjs": "^0.2.2"
+  },
+  "scripts": {
+    "build": "rm -rf dist/* && tsc -b",
+    "watch": "tsc -w"
   }
 }
