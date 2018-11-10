@@ -72,6 +72,10 @@ export class DataBase {
     // loads and returns an existing record instance on disk from a given key (from short key)
     const stringValue = await this.storage.get(key)
     const value = JSON.parse(stringValue)
+    if (!value.symkey) {
+      // return plain text content to packed format 
+      value.content = JSON.stringify(value.content)
+    }
     const record = Record.readPacked(key, value)
     return record   
   }
