@@ -586,7 +586,7 @@ class Record {
         // ********************
         if (this._value.immutable) {
             // is valid hash
-            if (!this._value.symkey) {
+            if (!this._value.symkey && !this._encoded) {
                 await this.pack(null);
             }
             const validHash = crypto.isValidHash(this.key, JSON.stringify(this._value));
