@@ -61,11 +61,7 @@ export declare class DataBase {
         size: number;
         records: Set<any>;
     }>;
-    getShard(shardId: string): {
-        contract: string;
-        size: number;
-        records: Set<string>;
-    };
+    getShard(shardId: string): any;
     delShard(shardId: string): Promise<void>;
     putRecordInShard(shardId: string, record: Record): Promise<void>;
     revRecordInShard(shardId: string, sizeDelta: number): Promise<IShard>;
@@ -104,7 +100,7 @@ export declare class Record {
     getSize(): number;
     getRecord(): {
         key: string;
-        value: IValue;
+        value: any;
     };
     getContent(shardId: string, replicationFactor: number, privateKeyObject: any): Promise<{
         key: string;

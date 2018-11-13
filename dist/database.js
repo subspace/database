@@ -101,7 +101,7 @@ class DataBase {
             shard.records.add(record.key);
             shard.size += record.getSize();
         }
-        this.shards.map.set(shardId, Object.assign({}, shard));
+        this.shards.map.set(shardId, JSON.parse(JSON.stringify(shard)));
         await this.shards.save();
         await this.storage.put(record.key, JSON.stringify(record.value));
     }
@@ -174,7 +174,7 @@ class DataBase {
         //   return test
         // }
         // is valid contract signature
-        const unsignedValue = Object.assign({}, request);
+        const unsignedValue = JSON.parse(JSON.stringify(request));
         unsignedValue.signature = null;
         const validSignature = await crypto.isValidSignature(unsignedValue, request.signature, request.contractKey);
         if (!validSignature) {
@@ -316,12 +316,12 @@ class DataBase {
             size: 0,
             records: new Set()
         };
-        this.shards.map.set(shardId, Object.assign({}, shard));
+        this.shards.map.set(shardId, JSON.parse(JSON.stringify(shard)));
         await this.shards.save();
         return shard;
     }
     getShard(shardId) {
-        return Object.assign({}, this.shards.map.get(shardId));
+        return JSON.parse(JSON.stringify(this.shards.map.get(shardId)));
     }
     async delShard(shardId) {
         const shard = this.getShard(shardId);
@@ -336,7 +336,7 @@ class DataBase {
         const shard = this.shards.map.get(shardId);
         shard.size += record.getSize();
         shard.records.add(record.key);
-        this.shards.map.set(shardId, Object.assign({}, shard));
+        this.shards.map.set(shardId, JSON.parse(JSON.stringify(shard)));
         await this.shards.save();
     }
     async revRecordInShard(shardId, sizeDelta) {
@@ -536,7 +536,7 @@ class Record {
         // returns the encrypted, encoded record object
         return {
             key: this._key,
-            value: this._value
+            value: JSON.parse(JSON.stringify(this._value))
         };
     }
     async getContent(shardId, replicationFactor, privateKeyObject) {
@@ -545,7 +545,7 @@ class Record {
         this.decodeContent();
         return {
             key: `${this._key}:${shardId}:${replicationFactor}`,
-            value: this._value.content
+            value: JSON.parse(JSON.stringify(this._value.content))
         };
     }
     // move to crypto module
@@ -618,7 +618,7 @@ class Record {
                 return test;
             }
             // does the record signature match the record public key
-            let unsignedValue = Object.assign({}, this._value);
+            let unsignedValue = JSON.parse(JSON.stringify(this._value));
             unsignedValue.recordSig = null;
             const validSignature = await crypto.isValidSignature(unsignedValue, this._value.recordSig, this._value.publicKey);
             if (!validSignature) {
