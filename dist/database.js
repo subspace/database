@@ -738,10 +738,14 @@ class Record {
                     this._value.content = false;
                 break;
             case 'array':
-                this._value.content = JSON.parse(this._value.content);
+                if (typeof (this._value.content === 'string')) {
+                    this._value.content = JSON.parse(this._value.content);
+                }
                 break;
             case 'object':
-                this._value.content = JSON.parse(this._value.content);
+                if (typeof (this._value.content === 'string')) {
+                    this._value.content = JSON.parse(this._value.content);
+                }
                 break;
             case 'buffer':
                 this._value.content = Buffer.from(this._value.content);
