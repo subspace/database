@@ -767,7 +767,7 @@ class Record {
         }
         if (!this._value.immutable) {
             // asym encrypt the private record signing key with node public key
-            this._value.privateKey = await crypto.encryptAssymetric(privateKey, publicKey);
+            this._value.privateKey = await crypto.encryptAssymetric(this._value.privateKey, publicKey);
         }
         this._encrypted = true;
     }
