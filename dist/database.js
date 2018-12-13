@@ -381,7 +381,7 @@ class DataBase {
     getDestinations() {
         const profile = this.wallet.getProfile();
         return this.tracker
-            .getEntries()
+            .getAllHosts()
             .filter((entry) => entry.status === true && entry.publicKey !== profile.publicKey)
             .map((entry) => {
             return new rendezvous_hash_1.Destination(crypto.getHash64(entry.hash), entry.pledge / exports.PLEDGE_SIZE);

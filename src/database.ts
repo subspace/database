@@ -444,7 +444,7 @@ export class DataBase {
   public getDestinations(): Destination[] {
     const profile = this.wallet.getProfile()
     return this.tracker
-      .getEntries()
+      .getAllHosts()
       .filter((entry: any) => entry.status === true && entry.publicKey !== profile.publicKey)
       .map((entry: any) => {
         return new Destination(
