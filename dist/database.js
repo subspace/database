@@ -379,9 +379,10 @@ class DataBase {
         return jump_consistent_hash_1.jumpConsistentHash(hash, numberOfShards);
     }
     getDestinations() {
+        const profile = this.wallet.getProfile();
         return this.tracker
             .getEntries()
-            .filter((entry) => entry.status === true)
+            .filter((entry) => entry.status === true && entry.publicKey !== profile.publicKey)
             .map((entry) => {
             return new rendezvous_hash_1.Destination(crypto.getHash64(entry.hash), entry.pledge / exports.PLEDGE_SIZE);
         });
