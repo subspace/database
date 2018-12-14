@@ -390,9 +390,7 @@ class DataBase {
     getHostFromId64(hostId64) {
         return this.tracker
             .getAllHosts()
-            .filter((entry) => {
-            entry.status && crypto.getHash64(entry.hash).toString('hex') === Buffer.from(hostId64).toString('hex');
-        })
+            .filter((entry) => entry.status && crypto.getHash64(entry.hash).toString('hex') === Buffer.from(hostId64).toString('hex'))
             .map((entry) => entry.hash)[0];
     }
     computeHostsforShards(shardIds, replicationFactor) {

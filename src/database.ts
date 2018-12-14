@@ -457,9 +457,7 @@ export class DataBase {
   public getHostFromId64(hostId64: Uint8Array) {
     return this.tracker
       .getAllHosts()
-      .filter((entry: any) => {
-        entry.status && crypto.getHash64(entry.hash).toString('hex') === Buffer.from(hostId64).toString('hex')
-      })
+      .filter((entry: any) => entry.status && crypto.getHash64(entry.hash).toString('hex') === Buffer.from(hostId64).toString('hex'))
       .map((entry: any) => entry.hash)[0]
   }
 
