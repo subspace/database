@@ -176,7 +176,7 @@ class DataBase {
         // is valid contract signature
         const unsignedValue = JSON.parse(JSON.stringify(request));
         unsignedValue.signature = null;
-        const validSignature = await crypto.isValidSignature(unsignedValue, request.signature, request.contractKey);
+        const validSignature = await crypto.isValidSignature(unsignedValue, request.signature, request.contract.value.publicKey);
         if (!validSignature) {
             test.reason = 'Invalid contract request, incorrect signature';
             return test;
@@ -321,7 +321,12 @@ class DataBase {
         return shard;
     }
     getShard(shardId) {
-        return JSON.parse(JSON.stringify(this.shards.map.get(shardId)));
+        let shardCopy = null;
+        const shard = this.shards.map.get(shardId);
+        if (shard) {
+            shardCopy = JSON.parse(JSON.stringify(shard));
+        }
+        return shardCopy;
     }
     async delShard(shardId) {
         const shard = this.getShard(shardId);

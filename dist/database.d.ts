@@ -61,7 +61,7 @@ export declare class DataBase {
         size: number;
         records: Set<any>;
     }>;
-    getShard(shardId: string): any;
+    getShard(shardId: string): IShard;
     delShard(shardId: string): Promise<void>;
     putRecordInShard(shardId: string, record: Record): Promise<void>;
     revRecordInShard(shardId: string, sizeDelta: number): Promise<IShard>;
