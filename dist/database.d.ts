@@ -69,7 +69,7 @@ export declare class DataBase {
     computeShardArray(contractId: string, spaceReserved: number): string[];
     computeShardForKey(key: string, spaceReserved: number): number;
     getDestinations(): Destination[];
-    getHostFromId64(hostId64: string): any;
+    getHostFromId64(hostId64: Uint8Array): any;
     computeHostsforShards(shardIds: string[], replicationFactor: number): {
         id: string;
         hosts: any[];

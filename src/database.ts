@@ -454,12 +454,13 @@ export class DataBase {
       })
   }
 
-  public getHostFromId64(hostId64: string) {
+  public getHostFromId64(hostId64: Uint8Array) {
     return this.tracker
-      .getActiveHosts()
-      .filter((hostId: string) => {
-        Buffer.from(crypto.getHash64(hostId)).toString('hex') === hostId64
-      })[0]
+      .getAllHosts()
+      .filter((entry: any) => {
+        entry.status && crypto.getHash64(entry.hash).toString('hex') === Buffer.from(hostId64).toString('hex')
+      })
+      .map((entry: any) => entry.hash)[0]
   }
 
   public computeHostsforShards(shardIds: string[], replicationFactor: number) {
@@ -468,11 +469,10 @@ export class DataBase {
     return shardIds.map(shardId => {
       const hash = crypto.getHash64(shardId)
       const binaryHosts = pickDestinations(hash, destinations, replicationFactor)
-      const string64Hosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'))
-      const string256hosts = string64Hosts.map(host => this.getHostFromId64(host))
+      const stringHosts = binaryHosts.map(host => this.getHostFromId64(host))
       return {
         id: shardId,
-        hosts: string256hosts,
+        hosts: stringHosts,
       }
     })
   }

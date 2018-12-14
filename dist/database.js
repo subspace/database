@@ -389,10 +389,11 @@ class DataBase {
     }
     getHostFromId64(hostId64) {
         return this.tracker
-            .getActiveHosts()
-            .filter((hostId) => {
-            Buffer.from(crypto.getHash64(hostId)).toString('hex') === hostId64;
-        })[0];
+            .getAllHosts()
+            .filter((entry) => {
+            entry.status && crypto.getHash64(entry.hash).toString('hex') === Buffer.from(hostId64).toString('hex');
+        })
+            .map((entry) => entry.hash)[0];
     }
     computeHostsforShards(shardIds, replicationFactor) {
         // returns the closest hosts for each shard based on replication factor and host pledge using weighted rendezvous hashing
@@ -400,11 +401,10 @@ class DataBase {
         return shardIds.map(shardId => {
             const hash = crypto.getHash64(shardId);
             const binaryHosts = rendezvous_hash_1.pickDestinations(hash, destinations, replicationFactor);
-            const string64Hosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'));
-            const string256hosts = string64Hosts.map(host => this.getHostFromId64(host));
+            const stringHosts = binaryHosts.map(host => this.getHostFromId64(host));
             return {
                 id: shardId,
-                hosts: string256hosts,
+                hosts: stringHosts,
             };
         });
     }
