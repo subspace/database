@@ -56,7 +56,7 @@ export class DataBase {
   public async createRecord(content: any, encrypted: boolean) {
     // creates and saves a new record based on current default contract
     const profile = this.wallet.getProfile()
-    const contract = this.wallet.getContract()
+    const contract = this.wallet.getPrivateContract()
 
     let record: Record
     if (contract.ttl) {

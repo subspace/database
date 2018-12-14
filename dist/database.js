@@ -53,7 +53,7 @@ class DataBase {
     async createRecord(content, encrypted) {
         // creates and saves a new record based on current default contract
         const profile = this.wallet.getProfile();
-        const contract = this.wallet.getContract();
+        const contract = this.wallet.getPrivateContract();
         let record;
         if (contract.ttl) {
             record = await Record.createMutable(content, encrypted, profile.publickey);
