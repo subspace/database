@@ -448,7 +448,7 @@ export class DataBase {
       .filter((entry: any) => entry.status && entry.publicKey !== profile.publicKey)
       .map((entry: any) => {
         return new Destination(
-          crypto.getHash64(entry.hash),
+          crypto.getHash64(crypto.getHash(entry.publicKey)),
           entry.pledge/PLEDGE_SIZE
         )
       })
@@ -457,8 +457,8 @@ export class DataBase {
   public getHostFromId64(hostId64: Uint8Array) {
     return this.tracker
       .getAllHosts()
-      .filter((entry: any) => entry.status && crypto.getHash64(entry.hash).toString('hex') === Buffer.from(hostId64).toString('hex'))
-      .map((entry: any) => entry.hash)[0]
+      .filter((entry: any) => entry.status && crypto.getHash64(crypto.getHash(entry.publicKey)).toString('hex') === Buffer.from(hostId64).toString('hex'))
+      .map((entry: any) => crypto.getHash(entry.publicKey))[0]
   }
 
   public computeHostsforShards(shardIds: string[], replicationFactor: number) {

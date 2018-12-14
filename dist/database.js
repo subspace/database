@@ -384,14 +384,14 @@ class DataBase {
             .getAllHosts()
             .filter((entry) => entry.status && entry.publicKey !== profile.publicKey)
             .map((entry) => {
-            return new rendezvous_hash_1.Destination(crypto.getHash64(entry.hash), entry.pledge / exports.PLEDGE_SIZE);
+            return new rendezvous_hash_1.Destination(crypto.getHash64(crypto.getHash(entry.publicKey)), entry.pledge / exports.PLEDGE_SIZE);
         });
     }
     getHostFromId64(hostId64) {
         return this.tracker
             .getAllHosts()
-            .filter((entry) => entry.status && crypto.getHash64(entry.hash).toString('hex') === Buffer.from(hostId64).toString('hex'))
-            .map((entry) => entry.hash)[0];
+            .filter((entry) => entry.status && crypto.getHash64(crypto.getHash(entry.publicKey)).toString('hex') === Buffer.from(hostId64).toString('hex'))
+            .map((entry) => crypto.getHash(entry.publicKey))[0];
     }
     computeHostsforShards(shardIds, replicationFactor) {
         // returns the closest hosts for each shard based on replication factor and host pledge using weighted rendezvous hashing
