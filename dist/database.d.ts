@@ -69,16 +69,17 @@ export declare class DataBase {
     computeShardArray(contractId: string, spaceReserved: number): string[];
     computeShardForKey(key: string, spaceReserved: number): number;
     getDestinations(): Destination[];
+    getHostFromId64(hostId64: string): any;
     computeHostsforShards(shardIds: string[], replicationFactor: number): {
         id: string;
-        hosts: string[];
+        hosts: any[];
     }[];
     getShardAndHostsForKey(key: string, contract: IContract): {
         id: string;
-        hosts: string[];
+        hosts: any[];
     };
     getShardForKey(key: string, contract: IContract): string;
-    getHosts(key: string, contract: IContract): string[];
+    getHosts(key: string, contract: IContract): any[];
 }
 export declare class Record {
     private _key;

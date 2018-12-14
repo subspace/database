@@ -445,7 +445,7 @@ export class DataBase {
     const profile = this.wallet.getProfile()
     return this.tracker
       .getAllHosts()
-      .filter((entry: any) => entry.status === true && entry.publicKey !== profile.publicKey)
+      .filter((entry: any) => entry.status && entry.publicKey !== profile.publicKey)
       .map((entry: any) => {
         return new Destination(
           crypto.getHash64(entry.hash),
@@ -454,16 +454,25 @@ export class DataBase {
       })
   }
 
+  public getHostFromId64(hostId64: string) {
+    return this.tracker
+      .getActiveHosts()
+      .filter((hostId: string) => {
+        Buffer.from(crypto.getHash64(hostId)).toString('hex') === hostId64
+      })[0]
+  }
+
   public computeHostsforShards(shardIds: string[], replicationFactor: number) {
     // returns the closest hosts for each shard based on replication factor and host pledge using weighted rendezvous hashing
     const destinations = this.getDestinations()
     return shardIds.map(shardId => {
       const hash = crypto.getHash64(shardId)
       const binaryHosts = pickDestinations(hash, destinations, replicationFactor)
-      const stringHosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'))
+      const string64Hosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'))
+      const string256hosts = string64Hosts.map(host => this.getHostFromId64(host))
       return {
         id: shardId,
-        hosts: stringHosts,
+        hosts: string256hosts,
       }
     })
   }

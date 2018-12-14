@@ -382,10 +382,17 @@ class DataBase {
         const profile = this.wallet.getProfile();
         return this.tracker
             .getAllHosts()
-            .filter((entry) => entry.status === true && entry.publicKey !== profile.publicKey)
+            .filter((entry) => entry.status && entry.publicKey !== profile.publicKey)
             .map((entry) => {
             return new rendezvous_hash_1.Destination(crypto.getHash64(entry.hash), entry.pledge / exports.PLEDGE_SIZE);
         });
+    }
+    getHostFromId64(hostId64) {
+        return this.tracker
+            .getActiveHosts()
+            .filter((hostId) => {
+            Buffer.from(crypto.getHash64(hostId)).toString('hex') === hostId64;
+        })[0];
     }
     computeHostsforShards(shardIds, replicationFactor) {
         // returns the closest hosts for each shard based on replication factor and host pledge using weighted rendezvous hashing
@@ -393,10 +400,11 @@ class DataBase {
         return shardIds.map(shardId => {
             const hash = crypto.getHash64(shardId);
             const binaryHosts = rendezvous_hash_1.pickDestinations(hash, destinations, replicationFactor);
-            const stringHosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'));
+            const string64Hosts = binaryHosts.map(host => (Buffer.from(host)).toString('hex'));
+            const string256hosts = string64Hosts.map(host => this.getHostFromId64(host));
             return {
                 id: shardId,
-                hosts: stringHosts,
+                hosts: string256hosts,
             };
         });
     }
