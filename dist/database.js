@@ -56,7 +56,7 @@ class DataBase {
         const contract = this.wallet.getPrivateContract();
         let record;
         if (contract.ttl) {
-            record = await Record.createMutable(content, encrypted, profile.publickey);
+            record = await Record.createMutable(content, encrypted, profile.publicKey);
         }
         else {
             record = await Record.createImmutable(content, encrypted, profile.publicKey);

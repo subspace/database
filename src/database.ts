@@ -60,7 +60,7 @@ export class DataBase {
 
     let record: Record
     if (contract.ttl) {
-      record = await Record.createMutable(content, encrypted, profile.publickey)
+      record = await Record.createMutable(content, encrypted, profile.publicKey)
     } else {
       record = await Record.createImmutable(content, encrypted, profile.publicKey)
     }
@@ -590,7 +590,7 @@ export class Record {
     }
 
     const record = new Record(null, value)
-    await record.pack(publicKey, )
+    await record.pack(publicKey)
     record.setContentHash()
     await record.sign(privateKeyObject)
     record.setKey()
