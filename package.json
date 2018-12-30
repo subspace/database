@@ -14,9 +14,9 @@
     "typescript": "^3.0.1"
   },
   "dependencies": {
-    "@subspace/crypto": "github:subspace/crypto",
-    "@subspace/jump-consistent-hash": "github:subspace/jump-consistent-hash",
-    "@subspace/rendezvous-hash": "github:subspace/rendezvous-hash",
+    "@subspace/crypto": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/crypto.git",
+    "@subspace/jump-consistent-hash": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/jump-consistent-hash.git",
+    "@subspace/rendezvous-hash": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/rendezvous-hash.git",
     "xxhashjs": "^0.2.2"
   },
   "scripts": {

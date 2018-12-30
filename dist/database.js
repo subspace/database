@@ -69,7 +69,7 @@ class DataBase {
         const stringValue = await this.storage.get(key);
         const value = JSON.parse(stringValue);
         if (!value.symkey) {
-            // return plain text content to packed format 
+            // return plain text content to packed format
             value.content = JSON.stringify(value.content);
         }
         const record = Record.readPacked(key, value);
@@ -85,8 +85,8 @@ class DataBase {
         const record = Record.readUnpacked(recordObject.key, recordObject.value);
         return record;
     }
-    // need a simple save 
-    // need a simple delete 
+    // need a simple save
+    // need a simple delete
     async saveRecord(record, contract, update, sizeDelta) {
         // saves an encrypted, encoded record to disk locally, as a host
         const shardId = this.getShardForKey(record.key, contract);
@@ -162,12 +162,12 @@ class DataBase {
             test.reason = 'Invalid contract request, unknown contract';
             return test;
         }
-        // is the contract active  
+        // is the contract active
         if ((contract.createdAt + contract.ttl) < Date.now()) {
             test.reason = 'Invalid contract request, contract ttl has expired';
             return test;
         }
-        // does record owner match contract owner 
+        // does record owner match contract owner
         // add ACL later
         // if (crypto.getHash(record.value.ownerKey) !== contract.owner) {
         //   test.reason = 'Invalid del request, contract does not match record contract'
@@ -221,7 +221,7 @@ class DataBase {
         return test;
     }
     async isValidMutableContractRequest(txRecord, contractRecord) {
-        // check that the signature in the tx matches the contract record public key 
+        // check that the signature in the tx matches the contract record public key
         const message = contractRecord.value.publicKey;
         const signature = txRecord.value.content.contractSig;
         const publicKey = contractRecord.value.publicKey;
@@ -476,7 +476,7 @@ class Record {
         return record;
     }
     static async createMutable(content, encrypted, publicKey) {
-        // creates and returns a new mutable record instance 
+        // creates and returns a new mutable record instance
         let symkey = null;
         if (encrypted) {
             symkey = crypto.getRandom();
@@ -586,8 +586,8 @@ class Record {
         };
         // *****************
         // Shared Properties
-        // ***************** 
-        // has valid encoding 
+        // *****************
+        // has valid encoding
         if (!VALID_ENCODING.includes(this._value.encoding)) {
             test.reason = 'Invalid encoding format';
             return test;
@@ -646,17 +646,17 @@ class Record {
             valid: false,
             reason: null
         };
-        // version should be equal 
+        // version should be equal
         if (value.version !== update.version) {
             test.reason = 'Versions do not match on mutation';
             return test;
         }
-        // symkey should be equal 
+        // symkey should be equal
         if (value.symkey !== update.symkey) {
             test.reason = 'Symkeys do not match on mutation';
             return test;
         }
-        // new timestamp must be in the future 
+        // new timestamp must be in the future
         if (value.updatedAt >= update.updatedAt) {
             test.reason = 'Update timestamp cannot be older than original on mutation';
             return test;
@@ -790,7 +790,7 @@ class Record {
         if (this._value.symkey) { // is an encrypted record
             // asym decrypt the symkey with node private key
             this._value.symkey = await crypto.decryptAssymetric(this._value.symkey, privateKeyObject);
-            // sym decrypt the content with symkey 
+            // sym decrypt the content with symkey
             this._value.content = await crypto.decryptSymmetric(this._value.content, this._value.symkey);
         }
         if (!this._value.immutable) {
