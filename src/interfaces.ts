@@ -5,31 +5,40 @@ export interface IShard {
 }
 
 export interface IRecord {
-  key: string,
-  value: IValue
+  key: string
+  value: IRecordValue
 }
 
-export interface IValue {
-  // immutable + mutable properties
-  immutable: boolean
-  version: number       // SSDB encoding version of this record
-  encoding: string      // the value encoding for the content
-  symkey: string        // asym encrypted symmetric key
-  content: any           // the data being stored, encrypted by default
-  createdAt: number     // unix timestamp when created 
-  // ownerKey: string      // full public key of record creator
-  // ownerSig: string      // singature of record creator
-  
-  // mutable only properties
-  publicKey?: string     // public key of this record
-  privateKey?: string    // sym encrypted private key of this record
-  contentHash?: string   // a hash of final content
-  revision?: number      // sequence number for conflict resolution
-  updatedAt?: number     // last update for this record
-  recordSig?: string     // signature with record private key
+export interface IRecordValue {
+  type: string
+  version: number
+  encoding: string
+  symkey: string
+  content: any
+  createdAt: number
 }
 
+export interface IImmutableRecord extends IRecord {
+  value: IImmutableRecordValue
+}
 
+export interface IImmutableRecordValue extends IRecordValue {
+  type: 'immutable'
+}
+
+export interface IMutableRecord extends IRecord {
+  value: IMutableRecordValue
+}
+
+export interface IMutableRecordValue extends IRecordValue {
+  type: 'mutable'
+  publicKey: string     // public key of this record
+  privateKey: string    // sym encrypted private key of this record
+  contentHash: string   // a hash of final content
+  revision: number      // sequence number for conflict resolution
+  updatedAt: number     // last update for this record
+  recordSig: string     // signature with record private key
+}
 export interface IContract {
   id: string
   createdAt: number

@@ -1,6 +1,5 @@
-import { IRecord, IValue, IContract, IShard } from './interfaces';
+import { IRecord, IRecordValue, IImmutableRecord, IImmutableRecordValue, IMutableRecord, IMutableRecordValue, IContract, IShard } from './interfaces';
 import { Destination } from '@subspace/rendezvous-hash';
-export { IRecord, IValue };
 /**
  * Size of one shard in bytes (100M)
  */
@@ -19,12 +18,11 @@ export declare class DataBase {
         save: () => Promise<void>;
         load: () => Promise<void>;
     };
-    createRecord(content: any, encrypted: boolean): Promise<Record>;
-    getRecord(key: string): Promise<Record>;
-    loadPackedRecord(recordObject: IRecord): Record;
-    loadUnpackedRecord(recordObject: IRecord): Record;
+    createRecord(content: any, encrypted: boolean): Promise<MutableRecord | ImmutableRecord>;
+    loadRecordFromDisk(key: string): Promise<MutableRecord | ImmutableRecord>;
+    loadRecordFromNetwork(recordData: IImmutableRecord & IMutableRecord): Promise<MutableRecord | ImmutableRecord>;
     saveRecord(record: Record, contract: IContract, update?: boolean, sizeDelta?: number): Promise<void>;
-    revRecord(key: string, update: any): Promise<Record>;
+    revRecord(key: string, update: any): Promise<MutableRecord | ImmutableRecord>;
     delRecord(record: Record, shardId: string): Promise<void>;
     parseRecordKey(key: string): {
         shardId: string;
@@ -43,12 +41,12 @@ export declare class DataBase {
         valid: boolean;
         reason: string;
     }>;
-    isValidMutableContractRequest(txRecord: Record, contractRecord: Record): Promise<boolean>;
+    isValidMutableContractRequest(txRecord: Record, contractRecord: IMutableRecord): Promise<boolean>;
     isValidGetRequest(record: IRecord, shardId: string, replicationFactor: number): {
         valid: boolean;
         reason: string;
     };
-    isValidRevRequest(oldRecord: Record, newRecord: Record, contract: IContract, shardId: string, request: any): Promise<{
+    isValidRevRequest(oldRecord: MutableRecord, newRecord: MutableRecord, contract: IContract, shardId: string, request: any): Promise<{
         valid: boolean;
         reason: string;
     }>;
@@ -81,25 +79,20 @@ export declare class DataBase {
     getShardForKey(key: string, contract: IContract): string;
     getHosts(key: string, contract: IContract): any[];
 }
-export declare class Record {
-    private _key;
-    private _value;
-    private _encoded;
-    private _encrypted;
-    constructor(_key: string, _value: IValue);
-    readonly key: string;
-    readonly value: IValue;
-    readonly encoded: boolean;
-    readonly encrypted: boolean;
-    static createImmutable(content: any, encrypted: boolean, publicKey: string, timestamped?: boolean): Promise<Record>;
-    static createMutable(content: any, encrypted: boolean, publicKey: string): Promise<Record>;
-    static readUnpacked(key: string, value: IValue): Record;
-    static readPacked(key: string, value: IValue): Record;
-    update(update: any, profile: any): Promise<void>;
-    pack(publicKey: string): Promise<void>;
-    unpack(privateKeyObject: any): Promise<void>;
+declare class Record {
+    protected _key: string;
+    protected _value: IRecordValue;
+    protected _isEncoded: boolean;
+    protected _isEncrypted: boolean;
+    constructor();
+    key: string;
+    readonly value: IRecordValue;
+    init(content: any, encrypted: boolean, timestamped?: boolean): Promise<void>;
+    static loadFromData(recordData: IMutableRecord & IImmutableRecord, privateKeyObject?: any): Promise<MutableRecord | ImmutableRecord>;
+    isMutable(): boolean;
+    isImmutable(): boolean;
     getSize(): number;
-    getRecord(): {
+    getData(): {
         key: string;
         value: any;
     };
@@ -107,23 +100,52 @@ export declare class Record {
         key: string;
         value: any;
     }>;
-    createPoR(nodeId: string): string;
-    isValidPoR(nodeId: string, proof: string): boolean;
-    createPoD(nodeId: string): string;
-    isValidPoD(nodeId: string, proof: string): boolean;
+    isValidRecord(sender?: string): Promise<{
+        valid: boolean;
+        reason: string;
+    }>;
+    protected encodeContent(): void;
+    protected decodeContent(): void;
+    protected encryptRecord(publicKey: string, privateKey?: string): Promise<void>;
+    protected decryptRecord(privateKeyObject: any): Promise<void>;
+}
+export declare class ImmutableRecord extends Record {
+    constructor();
+    _value: IImmutableRecordValue;
+    private setKey;
+    value: IImmutableRecordValue;
+    static create(content: any, encrypted: boolean, publicKey: string, timestamped?: boolean): Promise<ImmutableRecord>;
+    static readPackedImmutableRecord(data: IImmutableRecord, privateKeyObject?: any): Promise<ImmutableRecord>;
+    isValid(sender: string): Promise<{
+        valid: boolean;
+        reason: string;
+    }>;
+    pack(publicKey: string): Promise<void>;
+    unpack(privateKeyObject: any): Promise<void>;
+    private encrypt;
+    private decrypt;
+}
+export declare class MutableRecord extends Record {
+    constructor();
+    _value: IMutableRecordValue;
+    private setKey;
+    value: IMutableRecordValue;
+    static create(content: any, encrypted: boolean, publicKey: string, timestamped?: boolean): Promise<MutableRecord>;
+    static readPackedMutableRecord(data: IMutableRecord, privateKeyObject?: any): Promise<MutableRecord>;
+    update(update: any, profile: any): Promise<void>;
+    private setContentHash;
+    private sign;
     isValid(sender?: string): Promise<{
         valid: boolean;
         reason: string;
     }>;
-    isValidUpdate(value: IValue, update: IValue): {
+    isValidUpdate(value: IMutableRecordValue, update: IMutableRecordValue): {
         valid: boolean;
         reason: string;
     };
-    private encodeContent;
-    private decodeContent;
+    pack(publicKey: string): Promise<void>;
+    unpack(privateKeyObject: any): Promise<void>;
     private encrypt;
     private decrypt;
-    private sign;
-    private setContentHash;
-    private setKey;
 }
+export {};

@@ -6,14 +6,14 @@
   "author": "subspace",
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^23.3.1",
-    "@types/node": "^10.9.2",
+    "@types/jest": "^23.3.14",
+    "@types/node": "^10.14.4",
     "jest": "^23.5.0",
     "ts-jest": "^23.1.4",
-    "typescript": "^3.0.1"
+    "typescript": "^3.4.3"
   },
   "dependencies": {
-    "@subspace/crypto": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/crypto.git",
+    "@subspace/crypto": "git+https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/crypto.git",
     "@subspace/jump-consistent-hash": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/jump-consistent-hash.git",
     "@subspace/rendezvous-hash": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/rendezvous-hash.git",
     "xxhashjs": "^0.2.2"
