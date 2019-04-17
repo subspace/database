@@ -456,14 +456,14 @@ class Record {
         }
     }
     static async loadFromData(recordData, privateKeyObject) {
-        let record;
         if (recordData.value.type === 'immutable') {
-            record = await ImmutableRecord.readPackedImmutableRecord(recordData, privateKeyObject);
+            const immutableRecordData = recordData;
+            return await ImmutableRecord.readPackedImmutableRecord(immutableRecordData, privateKeyObject);
         }
         else if (recordData.value.type === 'mutable') {
-            record = await MutableRecord.readPackedMutableRecord(recordData, privateKeyObject);
+            const mutableRecordData = recordData;
+            return await MutableRecord.readPackedMutableRecord(mutableRecordData, privateKeyObject);
         }
-        return record;
     }
     // public methods
     isMutable() {
@@ -613,6 +613,7 @@ class Record {
         }
     }
 }
+exports.Record = Record;
 class ImmutableRecord extends Record {
     constructor() {
         super();
@@ -638,6 +639,8 @@ class ImmutableRecord extends Record {
         let record = new ImmutableRecord();
         record.key = data.key;
         record.value = data.value;
+        record._isEncoded = true;
+        record._isEncrypted = true;
         await record.unpack(privateKeyObject);
         const test = await record.isValidRecord();
         if (!test.valid) {
@@ -709,6 +712,8 @@ class MutableRecord extends Record {
         let record = new MutableRecord();
         record.key = data.key;
         record.value = data.value;
+        record._isEncoded = true;
+        record._isEncrypted = true;
         await record.unpack(privateKeyObject);
         const test = await record.isValidRecord();
         if (!test.valid) {

@@ -500,7 +500,7 @@ export class DataBase {
   }
 }
 
-class Record {
+export class Record {
 
   protected _key: string
   protected _value: IRecordValue
@@ -537,14 +537,14 @@ class Record {
     }
   }
 
-  static async loadFromData(recordData: IMutableRecord & IImmutableRecord, privateKeyObject?: any ) {
-    let record: MutableRecord | ImmutableRecord
+  static async loadFromData(recordData: any, privateKeyObject?: any ) {
     if (recordData.value.type === 'immutable') {
-      record = await ImmutableRecord.readPackedImmutableRecord(recordData, privateKeyObject)
+      const immutableRecordData: IImmutableRecord = recordData
+      return  await ImmutableRecord.readPackedImmutableRecord(immutableRecordData, privateKeyObject)
     } else if (recordData.value.type === 'mutable') {
-      record = await MutableRecord.readPackedMutableRecord(recordData, privateKeyObject)
+      const mutableRecordData: IMutableRecord = recordData
+      return await MutableRecord.readPackedMutableRecord(mutableRecordData, privateKeyObject)
     }
-    return record
   }
 
   // public methods
@@ -747,6 +747,8 @@ export class ImmutableRecord extends Record {
     let record = new ImmutableRecord()
     record.key = data.key
     record.value = data.value
+    record._isEncoded = true
+    record._isEncrypted = true
     await record.unpack(privateKeyObject)
     const test = await record.isValidRecord()
     if (!test.valid) {
@@ -834,6 +836,8 @@ export class MutableRecord extends Record {
     let record = new MutableRecord()
     record.key = data.key
     record.value = data.value
+    record._isEncoded = true
+    record._isEncrypted = true
     await record.unpack(privateKeyObject)
     const test = await record.isValidRecord()
     if (!test.valid) {

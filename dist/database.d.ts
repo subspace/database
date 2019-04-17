@@ -79,7 +79,7 @@ export declare class DataBase {
     getShardForKey(key: string, contract: IContract): string;
     getHosts(key: string, contract: IContract): any[];
 }
-declare class Record {
+export declare class Record {
     protected _key: string;
     protected _value: IRecordValue;
     protected _isEncoded: boolean;
@@ -88,7 +88,7 @@ declare class Record {
     key: string;
     readonly value: IRecordValue;
     init(content: any, encrypted: boolean, timestamped?: boolean): Promise<void>;
-    static loadFromData(recordData: IMutableRecord & IImmutableRecord, privateKeyObject?: any): Promise<MutableRecord | ImmutableRecord>;
+    static loadFromData(recordData: any, privateKeyObject?: any): Promise<MutableRecord | ImmutableRecord>;
     isMutable(): boolean;
     isImmutable(): boolean;
     getSize(): number;
@@ -148,4 +148,3 @@ export declare class MutableRecord extends Record {
     private encrypt;
     private decrypt;
 }
-export {};
