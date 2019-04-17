@@ -632,7 +632,6 @@ class ImmutableRecord extends Record {
         record.setKey();
         await record.unpack(publicKey);
         return record;
-        // have to encrypt mutable differently
         // need a method and usage pattern for getting the entire object out
     }
     static async readPackedImmutableRecord(data, privateKeyObject) {

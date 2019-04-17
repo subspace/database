@@ -722,7 +722,7 @@ export class ImmutableRecord extends Record {
 
   public _value: IImmutableRecordValue
 
-  private setKey() {
+  protected setKey() {
     this._key = crypto.getHash(JSON.stringify(this._value))
   }
 
@@ -739,7 +739,6 @@ export class ImmutableRecord extends Record {
     await record.unpack(publicKey)
     return record
 
-    // have to encrypt mutable differently
     // need a method and usage pattern for getting the entire object out
   }
 
@@ -797,7 +796,6 @@ export class ImmutableRecord extends Record {
     await this.decryptRecord(privateKeyObject)
     this._isEncrypted = false
   }
-
 }
 
 export class MutableRecord extends Record {
@@ -808,7 +806,7 @@ export class MutableRecord extends Record {
 
   public _value: IMutableRecordValue
 
-  private setKey() {
+  protected setKey() {
     this._key = crypto.getHash(this._value.publicKey)
   }
 

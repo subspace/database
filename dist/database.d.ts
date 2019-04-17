@@ -112,7 +112,7 @@ export declare class Record {
 export declare class ImmutableRecord extends Record {
     constructor();
     _value: IImmutableRecordValue;
-    private setKey;
+    protected setKey(): void;
     value: IImmutableRecordValue;
     static create(content: any, encrypted: boolean, publicKey: string, timestamped?: boolean): Promise<ImmutableRecord>;
     static readPackedImmutableRecord(data: IImmutableRecord, privateKeyObject?: any): Promise<ImmutableRecord>;
@@ -128,7 +128,7 @@ export declare class ImmutableRecord extends Record {
 export declare class MutableRecord extends Record {
     constructor();
     _value: IMutableRecordValue;
-    private setKey;
+    protected setKey(): void;
     value: IMutableRecordValue;
     static create(content: any, encrypted: boolean, publicKey: string, timestamped?: boolean): Promise<MutableRecord>;
     static readPackedMutableRecord(data: IMutableRecord, privateKeyObject?: any): Promise<MutableRecord>;
