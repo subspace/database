@@ -20,6 +20,8 @@ export declare class DataBase {
         load: () => Promise<void>;
     };
     createRecord(content: any, encrypted: boolean): Promise<MutableRecord | ImmutableRecord>;
+    loadMutableRecordFromDisk(key: string): Promise<MutableRecord>;
+    loadImmutableRecordFromDisk(key: string): Promise<ImmutableRecord>;
     loadRecordFromDisk(key: string): Promise<MutableRecord | ImmutableRecord>;
     loadRecordFromNetwork(recordData: IImmutableRecord & IMutableRecord): Promise<MutableRecord | ImmutableRecord>;
     saveRecord(record: Record, contract: IContract, update?: boolean, sizeDelta?: number): Promise<void>;

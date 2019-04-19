@@ -16,6 +16,9 @@
     "@subspace/crypto": "git+https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/crypto.git",
     "@subspace/jump-consistent-hash": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/jump-consistent-hash.git",
     "@subspace/rendezvous-hash": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/rendezvous-hash.git",
+    "@subspace/storage": "^1.0.0",
+    "@subspace/tracker": "^1.0.0",
+    "@subspace/wallet": "^1.0.0",
     "xxhashjs": "^0.2.2"
   },
   "scripts": {

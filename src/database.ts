@@ -3,7 +3,14 @@ import * as crypto from '@subspace/crypto'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
 
+// import Wallet from '@subspace/wallet'
+// import Storage from '@subspace/storage'
+// import { Tracker } from '@subspace/tracker'
+// this creates circular dependencies and wont compile
+
 export { IImmutableRecord, IImmutableRecordValue, IMutableRecord, IMutableRecordValue, IRecord, IRecordValue}
+
+
 
 // ToDo
   // later add patch method for unecrypted data
@@ -68,6 +75,24 @@ export class DataBase {
 
     const recordData = record.getData()
     await this.storage.put(recordData.key, JSON.stringify(recordData.value))
+    return record
+  }
+
+  public async loadMutableRecordFromDisk(key: string) {
+    const stringValue = await this.storage.get(key)
+    const value = JSON.parse(stringValue)
+
+    const recordData:  IMutableRecord = { key, value }
+    const record = await MutableRecord.readPackedMutableRecord(recordData)
+    return record
+  }
+
+  public async loadImmutableRecordFromDisk(key: string) {
+    const stringValue = await this.storage.get(key)
+    const value = JSON.parse(stringValue)
+
+    const recordData: IImmutableRecord  = { key, value }
+    const record = await ImmutableRecord.readPackedImmutableRecord(recordData)
     return record
   }
 

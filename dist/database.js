@@ -65,6 +65,20 @@ class DataBase {
         await this.storage.put(recordData.key, JSON.stringify(recordData.value));
         return record;
     }
+    async loadMutableRecordFromDisk(key) {
+        const stringValue = await this.storage.get(key);
+        const value = JSON.parse(stringValue);
+        const recordData = { key, value };
+        const record = await MutableRecord.readPackedMutableRecord(recordData);
+        return record;
+    }
+    async loadImmutableRecordFromDisk(key) {
+        const stringValue = await this.storage.get(key);
+        const value = JSON.parse(stringValue);
+        const recordData = { key, value };
+        const record = await ImmutableRecord.readPackedImmutableRecord(recordData);
+        return record;
+    }
     async loadRecordFromDisk(key) {
         // loads and returns an existing record instance on disk from a given key (from short key)
         const stringValue = await this.storage.get(key);
