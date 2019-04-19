@@ -1,5 +1,6 @@
 import { IRecord, IRecordValue, IImmutableRecord, IImmutableRecordValue, IMutableRecord, IMutableRecordValue, IContract, IShard } from './interfaces';
 import { Destination } from '@subspace/rendezvous-hash';
+export { IImmutableRecord, IImmutableRecordValue, IMutableRecord, IMutableRecordValue };
 /**
  * Size of one shard in bytes (100M)
  */
