@@ -719,6 +719,7 @@ class MutableRecord extends Record {
         record.setContentHash();
         await record.sign(privateKeyObject);
         record.setKey();
+        await record.unpack(publicKey);
         return record;
     }
     static async readPackedMutableRecord(data, privateKeyObject) {
