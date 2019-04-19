@@ -3,7 +3,7 @@ import * as crypto from '@subspace/crypto'
 import {jumpConsistentHash} from '@subspace/jump-consistent-hash'
 import {Destination, pickDestinations} from '@subspace/rendezvous-hash'
 
-export { IImmutableRecord, IImmutableRecordValue, IMutableRecord, IMutableRecordValue}
+export { IImmutableRecord, IImmutableRecordValue, IMutableRecord, IMutableRecordValue, IRecord, IRecordValue}
 
 // ToDo
   // later add patch method for unecrypted data
