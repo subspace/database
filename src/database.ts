@@ -101,7 +101,7 @@ export class DataBase {
     const shardId = this.getShardForKey(record.key, contract)
     let shard = this.getShard(shardId)
     if (!shard) {
-      shard = await this.createShard(shardId, contract.id)
+      shard = await this.createShard(shardId, contract.contractId)
     }
 
     if (update) {
@@ -484,7 +484,7 @@ export class DataBase {
 
   public getShardAndHostsForKey(key: string, contract: IContract) {
     // return the correct hosts for a given key
-    const shards = this.computeShardArray(contract.id, contract.spaceReserved)
+    const shards = this.computeShardArray(contract.contractId, contract.spaceReserved)
     const shardIndex = this.computeShardForKey(key, contract.spaceReserved)
     const shard = shards[shardIndex]
     const shardMaps = this.computeHostsforShards(shards, contract.replicationFactor)
@@ -492,7 +492,7 @@ export class DataBase {
   }
 
   public getShardForKey(key: string, contract: IContract) {
-    const shards = this.computeShardArray(contract.id, contract.spaceReserved)
+    const shards = this.computeShardArray(contract.contractId, contract.spaceReserved)
     const shardIndex = this.computeShardForKey(key, contract.spaceReserved)
     return shards[shardIndex]
   }

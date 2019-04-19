@@ -34,12 +34,13 @@ export interface IMutableRecordValue extends IRecordValue {
     recordSig: string;
 }
 export interface IContract {
-    id: string;
+    txId: string;
     createdAt: number;
     spaceReserved: number;
     replicationFactor: number;
     ttl: number;
     contractSig: string;
+    contractId: string;
 }
 export interface IRequest {
     record: IRecord;
