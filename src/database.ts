@@ -529,12 +529,13 @@ export class DataBase {
 
 export class Record implements IRecord {
 
-  protected _key: string = null
-  protected _value: IRecordValue = null
+  protected _key: string 
+  protected _value: IRecordValue
   protected _isEncoded = false
   protected _isEncrypted = false
   
-  constructor() {}
+  constructor() {
+  }
 
   get key() {
     return this._key
@@ -551,9 +552,17 @@ export class Record implements IRecord {
   // static methods
 
   async init(content: any, encrypted: boolean, timestamped = true) {
-    this._value.content = content
+    
+    this._value = {
+      type: null,
+      version: SCHEMA_VERSION,
+      encoding: null, 
+      symkey: null,
+      content,
+      createdAt: null
+    }
+
     this.encodeContent() 
-    this._value.version = SCHEMA_VERSION
 
     if (encrypted) {
       this._value.symkey = crypto.getRandom()

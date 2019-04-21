@@ -445,8 +445,6 @@ class DataBase {
 exports.DataBase = DataBase;
 class Record {
     constructor() {
-        this._key = null;
-        this._value = null;
         this._isEncoded = false;
         this._isEncrypted = false;
     }
@@ -461,9 +459,15 @@ class Record {
     }
     // static methods
     async init(content, encrypted, timestamped = true) {
-        this._value.content = content;
+        this._value = {
+            type: null,
+            version: SCHEMA_VERSION,
+            encoding: null,
+            symkey: null,
+            content,
+            createdAt: null
+        };
         this.encodeContent();
-        this._value.version = SCHEMA_VERSION;
         if (encrypted) {
             this._value.symkey = crypto.getRandom();
         }
