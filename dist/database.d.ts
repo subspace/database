@@ -82,7 +82,7 @@ export declare class DataBase {
     getShardForKey(key: string, contract: IContract): string;
     getHosts(key: string, contract: IContract): any[];
 }
-export declare class Record {
+export declare class Record implements IRecord {
     protected _key: string;
     protected _value: IRecordValue;
     protected _isEncoded: boolean;

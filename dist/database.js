@@ -445,6 +445,8 @@ class DataBase {
 exports.DataBase = DataBase;
 class Record {
     constructor() {
+        this._key = null;
+        this._value = null;
         this._isEncoded = false;
         this._isEncrypted = false;
     }

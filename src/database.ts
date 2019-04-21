@@ -527,10 +527,10 @@ export class DataBase {
   }
 }
 
-export class Record {
+export class Record implements IRecord {
 
-  protected _key: string
-  protected _value: IRecordValue
+  protected _key: string = null
+  protected _value: IRecordValue = null
   protected _isEncoded = false
   protected _isEncrypted = false
   
