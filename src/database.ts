@@ -551,16 +551,9 @@ export class Record implements IRecord {
 
   // static methods
 
-  async init(content: any, encrypted: boolean, timestamped = true) {
-    
-    this._value = {
-      type: null,
-      version: SCHEMA_VERSION,
-      encoding: null, 
-      symkey: null,
-      content,
-      createdAt: null
-    }
+  async init(value: any, encrypted: boolean, timestamped = true) {
+
+    this._value = value
 
     this.encodeContent() 
 
@@ -600,16 +593,16 @@ export class Record implements IRecord {
   public getData() {
     // returns the encrypted, encoded record object
     return {
-      key: this._key,
-      value: JSON.parse(JSON.stringify(this._value))
+      key: this.key,
+      value: JSON.parse(JSON.stringify(this.value))
     }
   }
 
   public async getContent(shardId: string, replicationFactor: number, privateKeyObject: any) {
     // returns the key and decrypted, decoded content
     return {
-      key: `${this._key}:${shardId}:${replicationFactor}`,
-      value: JSON.parse(JSON.stringify(this._value.content))
+      key: `${this.key}:${shardId}:${replicationFactor}`,
+      value: JSON.parse(JSON.stringify(this.value.content))
     }
   }
 
@@ -644,7 +637,7 @@ export class Record implements IRecord {
       throw new Error ('Cannot encode content, it is already encoded')
     }
 
-    const content = this._value.content
+    const content = this.value.content
     switch(typeof content) {
       case('undefined'):
         throw new Error('Cannot create a record from content: undefined')
@@ -687,7 +680,7 @@ export class Record implements IRecord {
     }
 
     // convert string content back to original type based on encoding
-    switch (this._value.encoding) {
+    switch (this.value.encoding) {
       case 'null':
         this._value.content = null
         break
@@ -727,7 +720,7 @@ export class Record implements IRecord {
       throw new Error('Cannot encrypt record, it is already encrypted')
     }
 
-    if (this._value.symkey) {
+    if (this.value.symkey) {
       // sym encrypt the content with sym key
       this._value.content = await crypto.encryptSymmetric(this._value.content, this._value.symkey)
       // asym encyrpt the sym key with node public key
@@ -741,11 +734,11 @@ export class Record implements IRecord {
       throw new Error('Cannot decrypt record, it is already decrypted')
     }
 
-    if (this._value.symkey) { // is an encrypted record
+    if (this.value.symkey) { // is an encrypted record
       // asym decrypt the symkey with node private key
-      this._value.symkey = <string> await crypto.decryptAssymetric(this._value.symkey, privateKeyObject)
+      this._value.symkey = <string> await crypto.decryptAssymetric(this.value.symkey, privateKeyObject)
       // sym decrypt the content with symkey
-      this._value.content = await crypto.decryptSymmetric(this._value.content, this._value.symkey)
+      this._value.content = await crypto.decryptSymmetric(this.value.content, this.value.symkey)
     }    
   }
 }
@@ -759,7 +752,7 @@ export class ImmutableRecord extends Record {
   public _value: IImmutableRecordValue
 
   protected setKey() {
-    this._key = crypto.getHash(JSON.stringify(this._value))
+    this._key = crypto.getHash(JSON.stringify(this.value))
   }
 
   set value(value: IImmutableRecordValue) {
@@ -768,8 +761,15 @@ export class ImmutableRecord extends Record {
 
   static async create(content: any, encrypted: boolean, publicKey: string, timestamped = true) { 
     const record = new ImmutableRecord()
-    await record.init(content, encrypted, timestamped)
-    record._value.type = 'immutable'
+    const value:IImmutableRecordValue = {
+      type: 'immutable',
+      version: SCHEMA_VERSION,
+      encoding: null,
+      symkey: null,
+      content,
+      createdAt: null
+    }
+    await record.init(value, encrypted, timestamped)
     await record.pack(publicKey)
     record.setKey()
     await record.unpack(publicKey)
@@ -780,8 +780,8 @@ export class ImmutableRecord extends Record {
 
   static async readPackedImmutableRecord(data: IImmutableRecord, privateKeyObject?: any) {
     let record = new ImmutableRecord()
-    record.key = data.key
-    record.value = data.value
+    record._key = data.key
+    record._value = data.value
     record._isEncoded = true
     record._isEncrypted = true
     await record.unpack(privateKeyObject)
@@ -843,7 +843,7 @@ export class MutableRecord extends Record {
   public _value: IMutableRecordValue
 
   protected setKey() {
-    this._key = crypto.getHash(this._value.publicKey)
+    this._key = crypto.getHash(this.value.publicKey)
   }
 
   set value(value: IMutableRecordValue) {
@@ -852,13 +852,26 @@ export class MutableRecord extends Record {
 
   static async create(content: any, encrypted: boolean, publicKey: string, timestamped = false) {
     const record = new MutableRecord()
-    await record.init(content, encrypted, timestamped)
-    record._value.type = 'mutable'
     const keys = await crypto.generateKeys(MUTABLE_KEY_NAME, MUTABLE_KEY_EMAIL, MUTABLE_KEY_PASSPRHASE)
     const privateKeyObject = await crypto.getPrivateKeyObject(keys.privateKeyArmored, MUTABLE_KEY_PASSPRHASE)
-    record._value.publicKey = keys.publicKeyArmored
-    record._value.privateKey = keys.privateKeyArmored
-    record._value.revision = 0
+
+    const value:IMutableRecordValue = {
+      type: 'mutable',
+      version: SCHEMA_VERSION,
+      encoding: null,
+      symkey: null,
+      content,
+      createdAt: null,
+      publicKey: keys.publicKeyArmored,
+      privateKey: keys.privateKeyArmored,
+      contentHash: null,
+      revision: 0,
+      updatedAt: null,
+      recordSig: null
+    }
+
+    await record.init(value, encrypted, timestamped)
+    
     await record.pack(publicKey)
     record.setContentHash()
     await record.sign(privateKeyObject)
@@ -883,7 +896,7 @@ export class MutableRecord extends Record {
 
   public async update(update: any, profile: any) {
     this._value.content = update
-    const privateKeyObject = await crypto.getPrivateKeyObject(this._value.privateKey, MUTABLE_KEY_PASSPRHASE)
+    const privateKeyObject = await crypto.getPrivateKeyObject(this.value.privateKey, MUTABLE_KEY_PASSPRHASE)
     await this.pack(profile.publicKey)
     this.setContentHash()
     this._value.revision += 1
@@ -892,12 +905,12 @@ export class MutableRecord extends Record {
   }
 
   private setContentHash() {
-    this._value.contentHash = crypto.getHash(this._value.content)
+    this._value.contentHash = crypto.getHash(this.value.content)
   }
 
   private async sign(privateKeyObject: any) {
     this._value.recordSig = null
-    this._value.recordSig = await crypto.sign(this._value, privateKeyObject)
+    this._value.recordSig = await crypto.sign(this.value, privateKeyObject)
   }
 
   public async isValid(sender?: string) {
@@ -998,7 +1011,7 @@ export class MutableRecord extends Record {
     await this.encryptRecord(publicKey, privateKey)
 
     // asym encrypt the private record signing key with node public key
-    this._value.privateKey = await crypto.encryptAssymetric(this._value.privateKey, publicKey)
+    this._value.privateKey = await crypto.encryptAssymetric(this.value.privateKey, publicKey)
     this._isEncrypted = true
   }
 
@@ -1006,7 +1019,7 @@ export class MutableRecord extends Record {
     await this.decryptRecord(privateKeyObject)
 
     // asym decyprt the record private key with node private key
-    this._value.privateKey = <string>await crypto.decryptAssymetric(this._value.privateKey, privateKeyObject)
+    this._value.privateKey = <string>await crypto.decryptAssymetric(this.value.privateKey, privateKeyObject)
     this._isEncrypted = false
   }
 

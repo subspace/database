@@ -90,7 +90,7 @@ export declare class Record implements IRecord {
     constructor();
     key: string;
     readonly value: IRecordValue;
-    init(content: any, encrypted: boolean, timestamped?: boolean): Promise<void>;
+    init(value: any, encrypted: boolean, timestamped?: boolean): Promise<void>;
     static loadFromData(recordData: any, privateKeyObject?: any): Promise<MutableRecord | ImmutableRecord>;
     isMutable(): boolean;
     isImmutable(): boolean;

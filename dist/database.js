@@ -458,15 +458,8 @@ class Record {
         this._key = key;
     }
     // static methods
-    async init(content, encrypted, timestamped = true) {
-        this._value = {
-            type: null,
-            version: SCHEMA_VERSION,
-            encoding: null,
-            symkey: null,
-            content,
-            createdAt: null
-        };
+    async init(value, encrypted, timestamped = true) {
+        this._value = value;
         this.encodeContent();
         if (encrypted) {
             this._value.symkey = crypto.getRandom();
@@ -498,15 +491,15 @@ class Record {
     getData() {
         // returns the encrypted, encoded record object
         return {
-            key: this._key,
-            value: JSON.parse(JSON.stringify(this._value))
+            key: this.key,
+            value: JSON.parse(JSON.stringify(this.value))
         };
     }
     async getContent(shardId, replicationFactor, privateKeyObject) {
         // returns the key and decrypted, decoded content
         return {
-            key: `${this._key}:${shardId}:${replicationFactor}`,
-            value: JSON.parse(JSON.stringify(this._value.content))
+            key: `${this.key}:${shardId}:${replicationFactor}`,
+            value: JSON.parse(JSON.stringify(this.value.content))
         };
     }
     async isValidRecord(sender) {
@@ -533,7 +526,7 @@ class Record {
         if (this._isEncoded) {
             throw new Error('Cannot encode content, it is already encoded');
         }
-        const content = this._value.content;
+        const content = this.value.content;
         switch (typeof content) {
             case ('undefined'):
                 throw new Error('Cannot create a record from content: undefined');
@@ -576,7 +569,7 @@ class Record {
             throw new Error('Cannot decode content, it is already decoded');
         }
         // convert string content back to original type based on encoding
-        switch (this._value.encoding) {
+        switch (this.value.encoding) {
             case 'null':
                 this._value.content = null;
                 break;
@@ -614,7 +607,7 @@ class Record {
         if (this._isEncrypted) {
             throw new Error('Cannot encrypt record, it is already encrypted');
         }
-        if (this._value.symkey) {
+        if (this.value.symkey) {
             // sym encrypt the content with sym key
             this._value.content = await crypto.encryptSymmetric(this._value.content, this._value.symkey);
             // asym encyrpt the sym key with node public key
@@ -625,11 +618,11 @@ class Record {
         if (!this._isEncrypted) {
             throw new Error('Cannot decrypt record, it is already decrypted');
         }
-        if (this._value.symkey) { // is an encrypted record
+        if (this.value.symkey) { // is an encrypted record
             // asym decrypt the symkey with node private key
-            this._value.symkey = await crypto.decryptAssymetric(this._value.symkey, privateKeyObject);
+            this._value.symkey = await crypto.decryptAssymetric(this.value.symkey, privateKeyObject);
             // sym decrypt the content with symkey
-            this._value.content = await crypto.decryptSymmetric(this._value.content, this._value.symkey);
+            this._value.content = await crypto.decryptSymmetric(this.value.content, this.value.symkey);
         }
     }
 }
@@ -639,15 +632,22 @@ class ImmutableRecord extends Record {
         super();
     }
     setKey() {
-        this._key = crypto.getHash(JSON.stringify(this._value));
+        this._key = crypto.getHash(JSON.stringify(this.value));
     }
     set value(value) {
         this._value = value;
     }
     static async create(content, encrypted, publicKey, timestamped = true) {
         const record = new ImmutableRecord();
-        await record.init(content, encrypted, timestamped);
-        record._value.type = 'immutable';
+        const value = {
+            type: 'immutable',
+            version: SCHEMA_VERSION,
+            encoding: null,
+            symkey: null,
+            content,
+            createdAt: null
+        };
+        await record.init(value, encrypted, timestamped);
         await record.pack(publicKey);
         record.setKey();
         await record.unpack(publicKey);
@@ -656,8 +656,8 @@ class ImmutableRecord extends Record {
     }
     static async readPackedImmutableRecord(data, privateKeyObject) {
         let record = new ImmutableRecord();
-        record.key = data.key;
-        record.value = data.value;
+        record._key = data.key;
+        record._value = data.value;
         record._isEncoded = true;
         record._isEncrypted = true;
         await record.unpack(privateKeyObject);
@@ -707,20 +707,30 @@ class MutableRecord extends Record {
         super();
     }
     setKey() {
-        this._key = crypto.getHash(this._value.publicKey);
+        this._key = crypto.getHash(this.value.publicKey);
     }
     set value(value) {
         this._value = value;
     }
     static async create(content, encrypted, publicKey, timestamped = false) {
         const record = new MutableRecord();
-        await record.init(content, encrypted, timestamped);
-        record._value.type = 'mutable';
         const keys = await crypto.generateKeys(MUTABLE_KEY_NAME, MUTABLE_KEY_EMAIL, MUTABLE_KEY_PASSPRHASE);
         const privateKeyObject = await crypto.getPrivateKeyObject(keys.privateKeyArmored, MUTABLE_KEY_PASSPRHASE);
-        record._value.publicKey = keys.publicKeyArmored;
-        record._value.privateKey = keys.privateKeyArmored;
-        record._value.revision = 0;
+        const value = {
+            type: 'mutable',
+            version: SCHEMA_VERSION,
+            encoding: null,
+            symkey: null,
+            content,
+            createdAt: null,
+            publicKey: keys.publicKeyArmored,
+            privateKey: keys.privateKeyArmored,
+            contentHash: null,
+            revision: 0,
+            updatedAt: null,
+            recordSig: null
+        };
+        await record.init(value, encrypted, timestamped);
         await record.pack(publicKey);
         record.setContentHash();
         await record.sign(privateKeyObject);
@@ -743,7 +753,7 @@ class MutableRecord extends Record {
     }
     async update(update, profile) {
         this._value.content = update;
-        const privateKeyObject = await crypto.getPrivateKeyObject(this._value.privateKey, MUTABLE_KEY_PASSPRHASE);
+        const privateKeyObject = await crypto.getPrivateKeyObject(this.value.privateKey, MUTABLE_KEY_PASSPRHASE);
         await this.pack(profile.publicKey);
         this.setContentHash();
         this._value.revision += 1;
@@ -751,11 +761,11 @@ class MutableRecord extends Record {
         await this.sign(privateKeyObject);
     }
     setContentHash() {
-        this._value.contentHash = crypto.getHash(this._value.content);
+        this._value.contentHash = crypto.getHash(this.value.content);
     }
     async sign(privateKeyObject) {
         this._value.recordSig = null;
-        this._value.recordSig = await crypto.sign(this._value, privateKeyObject);
+        this._value.recordSig = await crypto.sign(this.value, privateKeyObject);
     }
     async isValid(sender) {
         const test = await this.isValidRecord(sender);
@@ -835,13 +845,13 @@ class MutableRecord extends Record {
     async encrypt(publicKey, privateKey) {
         await this.encryptRecord(publicKey, privateKey);
         // asym encrypt the private record signing key with node public key
-        this._value.privateKey = await crypto.encryptAssymetric(this._value.privateKey, publicKey);
+        this._value.privateKey = await crypto.encryptAssymetric(this.value.privateKey, publicKey);
         this._isEncrypted = true;
     }
     async decrypt(privateKeyObject) {
         await this.decryptRecord(privateKeyObject);
         // asym decyprt the record private key with node private key
-        this._value.privateKey = await crypto.decryptAssymetric(this._value.privateKey, privateKeyObject);
+        this._value.privateKey = await crypto.decryptAssymetric(this.value.privateKey, privateKeyObject);
         this._isEncrypted = false;
     }
 }
